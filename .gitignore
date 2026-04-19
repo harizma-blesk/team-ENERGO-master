@@ -1,0 +1,124 @@
+# Monorepo local config and secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.local
+*.secret
+private_backups/
+
+# Archives and ad-hoc exports
+*.zip
+*.7z
+*.rar
+*.tar
+*.gz
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDEs and editors
+.idea/
+.vscode/
+*.suo
+*.user
+*.userossc
+*.sln.docstates
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Node / frontend
+node_modules/
+dist/
+build/
+.parcel-cache/
+.turbo/
+.next/
+.nuxt/
+.svelte-kit/
+coverage/
+*.tsbuildinfo
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.venv/
+venv/
+env/
+ENV/
+
+# Python project runtime data
+*.sqlite
+*.sqlite3
+*.db
+telegramBOT/data/
+telegramBOT/logs/
+telegramBOT/tmpclaude-*-cwd
+MuitCameraServer-CameraServer/CameraServer/camera_server.db
+
+# PHP / Laravel
+php-server/vendor/
+php-server/public/build/
+php-server/bootstrap/cache/*.php
+php-server/.phpunit.result.cache
+
+# Java / JVM
+target/
+*.class
+*.jar
+
+# C / C++ / Qt build outputs
+*.obj
+*.o
+*.pdb
+*.ilk
+*.idb
+*.lib
+*.exp
+*.a
+*.so
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+compile_commands.json
+Makefile
+.qmake.stash
+moc_*.cpp
+qrc_*.cpp
+ui_*.h
+debug/
+release/
+x64/
+x86/
+
+# Docker overrides
+docker-compose.override.yml
+
+# Project-specific local files
+MainPage/backend/.env
+MainPage/frontend/.env
+telegramBOT/.env
+php-server/.env
+MuitCameraServer-CameraServer/CameraServer/settings.ini
+C++/settings.ini
