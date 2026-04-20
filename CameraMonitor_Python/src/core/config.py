@@ -118,6 +118,36 @@ class Config:
         """Порт ESP устройства"""
         return self.parser.getint("TCP_Servers", "PORT_ESP", fallback=44444)
 
+    @property
+    def tcp_timeout(self) -> float:
+        """Таймаут TCP подключения"""
+        return self.parser.getfloat("TCP_Servers", "timeout", fallback=5.0)
+
+    @property
+    def tcp_reconnect_delay(self) -> float:
+        """Задержка переподключения TCP при неудаче"""
+        return self.parser.getfloat("TCP_Servers", "reconnect_delay", fallback=2.0)
+
+    @property
+    def udp_send_host(self) -> str:
+        """Хост для отправки UDP сообщений"""
+        return self.parser.get("UDP", "IP_PythonServer", fallback="127.0.0.1")
+
+    @property
+    def tcp_timeout(self) -> float:
+        """Таймаут TCP подключения"""
+        return self.parser.getfloat("TCP_Servers", "timeout", fallback=5.0)
+
+    @property
+    def tcp_reconnect_delay(self) -> float:
+        """Задержка переподключения TCP при неудаче"""
+        return self.parser.getfloat("TCP_Servers", "reconnect_delay", fallback=2.0)
+
+    @property
+    def udp_send_host(self) -> str:
+        """Хост для отправки UDP сообщений"""
+        return self.parser.get("UDP", "IP_PythonServer", fallback="127.0.0.1")
+
     # Logging section
     @property
     def log_level(self) -> str:

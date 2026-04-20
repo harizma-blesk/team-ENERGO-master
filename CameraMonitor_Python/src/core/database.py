@@ -6,7 +6,7 @@
 from sqlalchemy import create_engine, String, DateTime, Float, Text, Boolean
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker, Session
 from datetime import datetime, timezone, timedelta
-from typing import List, Optional
+from typing import List, Optional, Dict, Dict
 import logging
 from pathlib import Path
 
@@ -37,6 +37,21 @@ class Camera(Base):
 
     def __repr__(self):
         return f"<Camera(id={self.id}, name='{self.name}', status='{self.status}')>"
+
+
+class Room(Base):
+    """
+    Модель кабинета / аудитории
+    """
+    __tablename__ = "rooms"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    building: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    floor: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+
+    def __repr__(self):
+        return f"<Room(id={self.id}, name='{self.name}', building='{self.building}')>"
 
 
 class CabinetBooking(Base):
@@ -148,6 +163,15 @@ class DatabaseManager:
         with self.SessionLocal() as session:
             return session.query(Camera).all()
 
+    def get_all_rooms(self) -> List[Dict[str, str]]:
+        """Получить список всех кабинетов/аудиторий"""
+        with self.SessionLocal() as session:
+            rooms = session.query(Room).all()
+            return [
+                {"id": str(room.id), "name": room.name}
+                for room in rooms
+            ]
+
     def update_camera_status(self, camera_id: int, status: str):
         """Обновить статус камеры"""
         with self.SessionLocal() as session:
@@ -191,6 +215,10 @@ class DatabaseManager:
             # TODO: Получить все кабинеты в корпусе и вернуть свободные
             # Пока возвращаем пустой список (нужна таблица cabinets)
             return []
+
+    def initialize_database(self):
+        """Создать схемы базы данных, если они не существуют"""
+        Base.metadata.create_all(bind=self.engine)
 
     def clear_temporary_bookings(self) -> int:
         """Очистить временные бронирования"""
