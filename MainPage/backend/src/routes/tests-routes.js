@@ -1,4 +1,3 @@
-import type { FastifyPluginAsync } from 'fastify';
 import { Difficulty, QuestionType, Role } from '@prisma/client';
 import { z } from 'zod';
 import {
@@ -32,7 +31,7 @@ const submitSchema = z.object({
   clientDurationSec: z.number().int().positive().optional()
 });
 
-const testsRoutes: FastifyPluginAsync = async (fastify) => {
+const testsRoutes = async (fastify) => {
   fastify.post('/tests/generate', { preHandler: fastify.authorize([Role.STUDENT]) }, async (request, reply) => {
     const parsed = generateSchema.safeParse(request.body);
     if (!parsed.success || !request.authUser) {
@@ -53,7 +52,7 @@ const testsRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.code(401).send(errorResponse('UNAUTHORIZED', 'Unauthorized', request.traceId));
     }
 
-    const { testId } = request.params as { testId: string };
+    const { testId } = request.params;
     const test = await getTestDetailsForStudent(testId, request.authUser.userId);
     if (!test) {
       return reply.code(404).send(errorResponse('NOT_FOUND', 'Test not found', request.traceId));
@@ -72,7 +71,7 @@ const testsRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.code(400).send(errorResponse('VALIDATION_ERROR', 'Invalid payload', request.traceId));
     }
 
-    const { testId } = request.params as { testId: string };
+    const { testId } = request.params;
 
     try {
       const result = await submitTestAttempt(testId, request.authUser.userId, parsed.data);
@@ -90,7 +89,7 @@ const testsRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.code(401).send(errorResponse('UNAUTHORIZED', 'Unauthorized', request.traceId));
     }
 
-    const { attemptId } = request.params as { attemptId: string };
+    const { attemptId } = request.params;
     const result = await getAttemptResult(attemptId, request.authUser.userId);
     if (!result) {
       return reply.code(404).send(errorResponse('NOT_FOUND', 'Attempt result not found', request.traceId));
@@ -104,7 +103,7 @@ const testsRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.code(401).send(errorResponse('UNAUTHORIZED', 'Unauthorized', request.traceId));
     }
 
-    const { attemptId } = request.params as { attemptId: string };
+    const { attemptId } = request.params;
     const review = await getAttemptReview(attemptId, request.authUser.userId);
     if (!review) {
       return reply.code(404).send(errorResponse('NOT_FOUND', 'Attempt review not found', request.traceId));

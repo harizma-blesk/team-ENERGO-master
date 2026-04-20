@@ -1,30 +1,11 @@
 import net from 'node:net';
 import { env } from '../config/env.js';
 
-export type ScheduleQuery = {
-  groupCode?: string;
-  semester?: string;
-  teacherExternalId?: string;
-};
-
-export type RemoteScheduleItem = {
-  externalScheduleId: string;
-  externalSubjectCode: string;
-  subjectName: string;
-  groupCode: string;
-  semester?: string;
-  teacherExternalId?: string;
-  teacherName?: string;
-  startsAt: string;
-  endsAt: string;
-  room?: string;
-};
-
-const isRemoteScheduleItem = (value: unknown): value is RemoteScheduleItem => {
+const isRemoteScheduleItem = (value) => {
   if (!value || typeof value !== 'object') {
     return false;
   }
-  const obj = value as Record<string, unknown>;
+  const obj = value;
   return (
     typeof obj.externalScheduleId === 'string' &&
     typeof obj.externalSubjectCode === 'string' &&
@@ -35,21 +16,15 @@ const isRemoteScheduleItem = (value: unknown): value is RemoteScheduleItem => {
   );
 };
 
-const normalizeResponse = (payload: unknown): RemoteScheduleItem[] => {
+const normalizeResponse = (payload) => {
   if (!payload || typeof payload !== 'object') {
     return [];
   }
-  const items = (payload as { items?: unknown[] }).items ?? [];
+  const items = payload.items ?? [];
   return items.filter(isRemoteScheduleItem);
 };
 
-type JavaSubjectItem = {
-  id?: string | number;
-  subName?: string;
-  teacherName?: string;
-};
-
-const toSafeCode = (value: string): string => {
+const toSafeCode = (value) => {
   const normalized = value
     .toLowerCase()
     .replace(/[^a-z0-9а-яё]+/gi, '_')
@@ -57,24 +32,24 @@ const toSafeCode = (value: string): string => {
   return normalized.length > 0 ? normalized.slice(0, 64) : 'subject';
 };
 
-const normalizeSubjectsPayload = (payload: unknown): JavaSubjectItem[] => {
+const normalizeSubjectsPayload = (payload) => {
   if (Array.isArray(payload)) {
-    return payload as JavaSubjectItem[];
+    return payload;
   }
   if (!payload || typeof payload !== 'object') {
     return [];
   }
-  const obj = payload as { subjects?: unknown[]; items?: unknown[] };
+  const obj = payload;
   if (Array.isArray(obj.subjects)) {
-    return obj.subjects as JavaSubjectItem[];
+    return obj.subjects;
   }
   if (Array.isArray(obj.items)) {
-    return obj.items as JavaSubjectItem[];
+    return obj.items;
   }
   return [];
 };
 
-const mapSubjectsToScheduleItems = (payload: unknown, query: ScheduleQuery): RemoteScheduleItem[] => {
+const mapSubjectsToScheduleItems = (payload, query) => {
   const subjects = normalizeSubjectsPayload(payload);
   const now = Date.now();
   const teacherFilter = query.teacherExternalId?.trim().toLowerCase();
@@ -105,15 +80,15 @@ const mapSubjectsToScheduleItems = (payload: unknown, query: ScheduleQuery): Rem
         teacherName,
         startsAt: starts.toISOString(),
         endsAt: ends.toISOString()
-      } as RemoteScheduleItem;
+      };
     })
-    .filter((item): item is RemoteScheduleItem => item !== null);
+    .filter((item) => item !== null);
 };
 
-const parseErrorText = (raw: string): string => {
+const parseErrorText = (raw) => {
   let details = raw;
   try {
-    const parsed = JSON.parse(raw) as { message?: string; error?: string };
+    const parsed = JSON.parse(raw);
     details = parsed.message ?? parsed.error ?? raw;
   } catch {
     details = raw;
@@ -121,16 +96,16 @@ const parseErrorText = (raw: string): string => {
   return details.trim();
 };
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const formatFetchFailure = (url: string, error: unknown): string => {
+const formatFetchFailure = (url, error) => {
   if (!(error instanceof Error)) {
     return `fetch failed: ${url}`;
   }
 
-  const cause = (error as Error & { cause?: unknown }).cause;
+  const cause = error.cause;
   if (cause && typeof cause === 'object') {
-    const causeObj = cause as { code?: string; message?: string; errno?: number };
+    const causeObj = cause;
     const code = causeObj.code ? ` ${causeObj.code}` : '';
     const errno = typeof causeObj.errno === 'number' ? ` errno=${causeObj.errno}` : '';
     const message = causeObj.message ? ` ${causeObj.message}` : '';
@@ -140,7 +115,7 @@ const formatFetchFailure = (url: string, error: unknown): string => {
   return `fetch failed: ${url} ${error.message}`.trim();
 };
 
-const fetchJsonHttp = async (url: string, init: RequestInit): Promise<unknown> => {
+const fetchJsonHttp = async (url, init) => {
   const maxAttempts = 2;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
@@ -156,7 +131,7 @@ const fetchJsonHttp = async (url: string, init: RequestInit): Promise<unknown> =
         return [];
       }
       try {
-        return JSON.parse(raw) as unknown;
+        return JSON.parse(raw);
       } catch {
         throw new Error(`HTTP schedule provider returned non-JSON response: ${url}`);
       }
@@ -173,14 +148,14 @@ const fetchJsonHttp = async (url: string, init: RequestInit): Promise<unknown> =
   throw new Error(`fetch failed: ${url}`);
 };
 
-const fetchViaHttp = async (query: ScheduleQuery): Promise<RemoteScheduleItem[]> => {
+const fetchViaHttp = async (query) => {
   if (!env.SCHEDULE_PROVIDER_HTTP_URL) {
     throw new Error('SCHEDULE_PROVIDER_HTTP_URL is not configured');
   }
 
   const baseUrl = env.SCHEDULE_PROVIDER_HTTP_URL.replace(/\/+$/, '');
   const subjectsUrl = baseUrl.endsWith('/subjects') ? baseUrl : `${baseUrl}/subjects`;
-  const errors: string[] = [];
+  const errors = [];
 
   // 1) If URL points directly to /subjects, prefer GET.
   if (baseUrl.endsWith('/subjects')) {
@@ -232,12 +207,12 @@ const fetchViaHttp = async (query: ScheduleQuery): Promise<RemoteScheduleItem[]>
   throw new Error(errors.join(' | '));
 };
 
-const fetchViaTcp = async (query: ScheduleQuery): Promise<RemoteScheduleItem[]> => {
+const fetchViaTcp = async (query) => {
   if (!env.SCHEDULE_PROVIDER_TCP_HOST || !env.SCHEDULE_PROVIDER_TCP_PORT) {
     throw new Error('SCHEDULE_PROVIDER_TCP_HOST/TCP_PORT are not configured');
   }
 
-  return new Promise<RemoteScheduleItem[]>((resolve, reject) => {
+  return new Promise((resolve, reject) => {
     const socket = new net.Socket();
     let settled = false;
     const timeout = setTimeout(() => {
@@ -250,7 +225,7 @@ const fetchViaTcp = async (query: ScheduleQuery): Promise<RemoteScheduleItem[]> 
 
     let buffer = '';
 
-    const finalizeResolve = (items: RemoteScheduleItem[]) => {
+    const finalizeResolve = (items) => {
       if (settled) {
         return;
       }
@@ -260,7 +235,7 @@ const fetchViaTcp = async (query: ScheduleQuery): Promise<RemoteScheduleItem[]> 
       resolve(items);
     };
 
-    const finalizeReject = (error: unknown) => {
+    const finalizeReject = (error) => {
       if (settled) {
         return;
       }
@@ -270,9 +245,9 @@ const fetchViaTcp = async (query: ScheduleQuery): Promise<RemoteScheduleItem[]> 
       reject(error);
     };
 
-    const parseLine = (line: string) => {
+    const parseLine = (line) => {
       try {
-        const parsed = JSON.parse(line) as { status?: string; items?: unknown[] };
+        const parsed = JSON.parse(line);
         if (parsed.status && parsed.status !== 'OK') {
           finalizeReject(new Error(`TCP schedule provider status: ${parsed.status}`));
           return;
@@ -335,7 +310,7 @@ const fetchViaTcp = async (query: ScheduleQuery): Promise<RemoteScheduleItem[]> 
   });
 };
 
-export const fetchRemoteSchedule = async (query: ScheduleQuery): Promise<RemoteScheduleItem[]> => {
+export const fetchRemoteSchedule = async (query) => {
   if (env.SCHEDULE_PROVIDER_MODE === 'tcp') {
     return fetchViaTcp(query);
   }

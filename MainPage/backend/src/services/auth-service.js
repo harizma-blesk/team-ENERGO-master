@@ -1,7 +1,7 @@
 import { prisma } from '../db/prisma.js';
 import { generateOpaqueToken, sha256 } from '../utils/hash.js';
 
-const parseRefreshTtlDays = (): number => {
+const parseRefreshTtlDays = () => {
   const envValue = process.env.JWT_REFRESH_EXPIRES_IN ?? '30d';
   const match = envValue.match(/^(\d+)d$/);
   if (!match) {
@@ -10,7 +10,7 @@ const parseRefreshTtlDays = (): number => {
   return Number(match[1]);
 };
 
-export const issueRefreshToken = async (userId: string): Promise<string> => {
+export const issueRefreshToken = async (userId) => {
   const rawToken = generateOpaqueToken(48);
   const tokenHash = sha256(rawToken);
   const expiresAt = new Date();
@@ -27,7 +27,7 @@ export const issueRefreshToken = async (userId: string): Promise<string> => {
   return rawToken;
 };
 
-export const rotateRefreshToken = async (rawToken: string): Promise<{ userId: string; newRawToken: string } | null> => {
+export const rotateRefreshToken = async (rawToken) => {
   const tokenHash = sha256(rawToken);
   const token = await prisma.refreshToken.findUnique({
     where: { tokenHash },
@@ -47,7 +47,7 @@ export const rotateRefreshToken = async (rawToken: string): Promise<{ userId: st
   return { userId: token.userId, newRawToken };
 };
 
-export const revokeRefreshToken = async (rawToken: string): Promise<void> => {
+export const revokeRefreshToken = async (rawToken) => {
   const tokenHash = sha256(rawToken);
   await prisma.refreshToken.updateMany({
     where: { tokenHash, revokedAt: null },

@@ -10,38 +10,17 @@ import { prisma } from '../db/prisma.js';
 import { buildRecommendations, generateQuestions, gradeAnswers } from './ai-service.js';
 import { resolveSubjectId } from './subject-service.js';
 
-export type GenerateTestPayload = {
-  subjectId: string;
-  difficulty: Difficulty;
-  questionTypes: QuestionType[];
-  questionCount: number;
-  topicIds: string[];
-  language: string;
-};
-
-export type SubmitAnswerPayload = {
-  questionId: string;
-  selectedOptionIds?: string[];
-  answerText?: string;
-};
-
-type MaterialLink = {
-  title: string;
-  url: string;
-  source: string;
-};
-
-const normalizeTopicLabel = (topicCode: string) =>
+const normalizeTopicLabel = (topicCode) =>
   topicCode
     .replace(/[_-]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 
 const buildMaterialLinks = (
-  topicCode: string,
-  subjectName?: string,
+  topicCode,
+  subjectName,
   language = 'ru'
-): MaterialLink[] => {
+) => {
   const topicLabel = normalizeTopicLabel(topicCode);
   const query = [subjectName, topicLabel].filter(Boolean).join(' ').trim();
   const searchTerm = query.length > 0 ? query : topicLabel || topicCode;
@@ -64,7 +43,7 @@ const buildMaterialLinks = (
   ];
 };
 
-const ensureSubject = async (subjectIdOrCode: string) => {
+const ensureSubject = async (subjectIdOrCode) => {
   const resolved = await resolveSubjectId(subjectIdOrCode);
   if (resolved) {
     return resolved;
@@ -83,20 +62,20 @@ const ensureSubject = async (subjectIdOrCode: string) => {
   return created.id;
 };
 
-const getQuestionMaxPoints = (question: { type: QuestionType; rubricJson: Prisma.JsonValue | null }) => {
+const getQuestionMaxPoints = (question) => {
   if (question.type !== QuestionType.OPEN_SHORT) {
     return 1;
   }
 
   const rubric = Array.isArray(question.rubricJson)
-    ? (question.rubricJson as { maxPoints?: number }[])
+    ? question.rubricJson
     : [];
 
   const sum = rubric.reduce((acc, item) => acc + Number(item.maxPoints ?? 0), 0);
   return sum > 0 ? sum : 5;
 };
 
-const getWeekStartUtc = (date: Date): Date => {
+const getWeekStartUtc = (date) => {
   const copy = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
   const day = copy.getUTCDay();
   const diff = day === 0 ? -6 : 1 - day;
@@ -105,7 +84,7 @@ const getWeekStartUtc = (date: Date): Date => {
   return copy;
 };
 
-export const generateTestForStudent = async (studentId: string, payload: GenerateTestPayload) => {
+export const generateTestForStudent = async (studentId, payload) => {
   const subjectId = await ensureSubject(payload.subjectId);
 
   const subject = await prisma.subject.findUnique({
@@ -148,12 +127,12 @@ export const generateTestForStudent = async (studentId: string, payload: Generat
           stem: generated.stem,
           topicCode: generated.topicCode,
           difficulty: generated.difficulty,
-          rubricJson: (generated.rubric ?? null) as Prisma.JsonValue,
-          correctAnswerJson: ({
+          rubricJson: generated.rubric ?? null,
+          correctAnswerJson: {
             optionCodes: generated.correctOptionCodes ?? [],
             expectedAnswer: generated.expectedAnswer ?? null,
             keywords: generated.keywords ?? []
-          } as Prisma.JsonValue),
+          },
           fingerprint: generated.fingerprint
         }
       });
@@ -178,12 +157,12 @@ export const generateTestForStudent = async (studentId: string, payload: Generat
 
   return {
     testId: test.id,
-    status: 'READY' as const,
+    status: 'READY',
     etaSec: 0
   };
 };
 
-export const getTestDetailsForStudent = async (testId: string, studentId: string) => {
+export const getTestDetailsForStudent = async (testId, studentId) => {
   const test = await prisma.test.findFirst({
     where: { id: testId, studentId },
     include: {
@@ -228,9 +207,9 @@ export const getTestDetailsForStudent = async (testId: string, studentId: string
 };
 
 export const submitTestAttempt = async (
-  testId: string,
-  studentId: string,
-  payload: { answers: SubmitAnswerPayload[]; clientDurationSec?: number }
+  testId,
+  studentId,
+  payload
 ) => {
   const test = await prisma.test.findFirst({
     where: { id: testId, studentId },
@@ -286,13 +265,13 @@ export const submitTestAttempt = async (
           }
         },
         update: {
-          selectedOptionIds: (incoming.selectedOptionIds ?? []) as Prisma.JsonValue,
+          selectedOptionIds: incoming.selectedOptionIds ?? [],
           answerText: incoming.answerText
         },
         create: {
           attemptId: attempt.id,
           questionId: incoming.questionId,
-          selectedOptionIds: (incoming.selectedOptionIds ?? []) as Prisma.JsonValue,
+          selectedOptionIds: incoming.selectedOptionIds ?? [],
           answerText: incoming.answerText
         }
       });
@@ -321,11 +300,8 @@ export const submitTestAttempt = async (
 
   const graded = gradeAnswers(
     answers.map((row) => {
-      const correctObj = (row.question.correctAnswerJson ?? {}) as {
-        optionCodes?: string[];
-        keywords?: string[];
-      };
-      const selectedIds = Array.isArray(row.selectedOptionIds) ? (row.selectedOptionIds as string[]) : [];
+      const correctObj = row.question.correctAnswerJson ?? {};
+      const selectedIds = Array.isArray(row.selectedOptionIds) ? row.selectedOptionIds : [];
       const selectedCodes = row.question.options
         .filter((option) => selectedIds.includes(option.id))
         .map((option) => option.code);
@@ -387,16 +363,16 @@ export const submitTestAttempt = async (
         summary: passed
           ? 'Тест успешно пройден. Есть темы для закрепления.'
           : 'Тест не пройден. Требуется повторение ключевых тем.',
-        mistakesJson: sortedMistakes as Prisma.JsonValue,
-        strengthsJson: ({ passed } as Prisma.JsonValue)
+        mistakesJson: sortedMistakes,
+        strengthsJson: { passed }
       },
       create: {
         attemptId: attempt.id,
         summary: passed
           ? 'Тест успешно пройден. Есть темы для закрепления.'
           : 'Тест не пройден. Требуется повторение ключевых тем.',
-        mistakesJson: sortedMistakes as Prisma.JsonValue,
-        strengthsJson: ({ passed } as Prisma.JsonValue)
+        mistakesJson: sortedMistakes,
+        strengthsJson: { passed }
       }
     });
 
@@ -408,11 +384,11 @@ export const submitTestAttempt = async (
           studentId,
           type: RecommendationType.PRACTICE,
           priority: index + 1,
-          contentJson: ({
+          contentJson: {
             topicCode: rec.topicCode,
             text: rec.text,
             materials: buildMaterialLinks(rec.topicCode, test.subject.name, test.language)
-          } as Prisma.JsonValue)
+          }
         }))
       });
 
@@ -493,7 +469,7 @@ export const submitTestAttempt = async (
     },
     update: {
       avgScore,
-      masteryJson: ({ mistakesByTopic: graded.mistakesByTopic } as Prisma.JsonValue),
+      masteryJson: { mistakesByTopic: graded.mistakesByTopic },
       trend: avgScore >= 60 ? 'UP' : 'DOWN'
     },
     create: {
@@ -501,7 +477,7 @@ export const submitTestAttempt = async (
       subjectId: test.subjectId,
       weekStart,
       avgScore,
-      masteryJson: ({ mistakesByTopic: graded.mistakesByTopic } as Prisma.JsonValue),
+      masteryJson: { mistakesByTopic: graded.mistakesByTopic },
       trend: avgScore >= 60 ? 'UP' : 'DOWN'
     }
   });
@@ -512,7 +488,7 @@ export const submitTestAttempt = async (
   };
 };
 
-export const getAttemptResult = async (attemptId: string, studentId: string) => {
+export const getAttemptResult = async (attemptId, studentId) => {
   const attempt = await prisma.testAttempt.findFirst({
     where: {
       id: attemptId,
@@ -541,7 +517,7 @@ export const getAttemptResult = async (attemptId: string, studentId: string) => 
   };
 };
 
-export const getAttemptReview = async (attemptId: string, studentId: string) => {
+export const getAttemptReview = async (attemptId, studentId) => {
   const attempt = await prisma.testAttempt.findFirst({
     where: {
       id: attemptId,
@@ -567,7 +543,7 @@ export const getAttemptReview = async (attemptId: string, studentId: string) => 
   }
 
   const mistakesRaw = Array.isArray(attempt.feedback?.mistakesJson)
-    ? (attempt.feedback?.mistakesJson as Array<Record<string, unknown>>)
+    ? attempt.feedback?.mistakesJson
     : [];
 
   const mistakes = mistakesRaw.map((item) => {
@@ -585,7 +561,7 @@ export const getAttemptReview = async (attemptId: string, studentId: string) => 
   });
 
   const recommendations = attempt.recommendations.map((rec) => {
-    const content = (rec.contentJson ?? {}) as Record<string, unknown>;
+    const content = rec.contentJson ?? {};
     const topicCode = typeof content.topicCode === 'string' ? content.topicCode : 'topic';
     const existingMaterials = Array.isArray(content.materials) ? content.materials : [];
     const materials =

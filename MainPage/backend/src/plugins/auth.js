@@ -1,35 +1,19 @@
 import fp from 'fastify-plugin';
 import fastifyJwt from '@fastify/jwt';
-import type { FastifyReply, FastifyRequest } from 'fastify';
-import type { Role } from '@prisma/client';
 import { env } from '../config/env.js';
-
-type AccessTokenPayload = {
-  userId: string;
-  role: Role;
-  email: string;
-};
-
-declare module 'fastify' {
-  interface FastifyInstance {
-    authenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
-    authorize: (roles: Role[]) => (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
-    signAccessToken: (payload: AccessTokenPayload) => Promise<string>;
-  }
-}
 
 export default fp(async (fastify) => {
   await fastify.register(fastifyJwt, {
     secret: env.JWT_ACCESS_SECRET
   });
 
-  fastify.decorate('signAccessToken', async (payload: AccessTokenPayload) => {
+  fastify.decorate('signAccessToken', async (payload) => {
     return fastify.jwt.sign(payload, { expiresIn: env.JWT_ACCESS_EXPIRES_IN });
   });
 
-  fastify.decorate('authenticate', async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.decorate('authenticate', async (request, reply) => {
     try {
-      const payload = await request.jwtVerify<AccessTokenPayload>();
+      const payload = await request.jwtVerify();
       request.authUser = {
         userId: payload.userId,
         role: payload.role,
@@ -47,8 +31,8 @@ export default fp(async (fastify) => {
     }
   });
 
-  fastify.decorate('authorize', (roles: Role[]) => {
-    return async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.decorate('authorize', (roles) => {
+    return async (request, reply) => {
       await fastify.authenticate(request, reply);
       if (reply.sent) {
         return;

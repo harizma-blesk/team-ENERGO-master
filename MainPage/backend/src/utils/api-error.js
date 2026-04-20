@@ -1,4 +1,4 @@
-export const errorResponse = (code: string, message: string, traceId: string, details?: unknown) => ({
+export const errorResponse = (code, message, traceId, details) => ({
   error: {
     code,
     message,

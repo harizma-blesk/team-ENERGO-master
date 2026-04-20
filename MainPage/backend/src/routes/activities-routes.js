@@ -1,4 +1,3 @@
-import type { FastifyPluginAsync } from 'fastify';
 import { ActivityType, Role } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../db/prisma.js';
@@ -32,11 +31,8 @@ const nextTurnSchema = z.object({
 });
 
 const calcScore = (
-  type: ActivityType,
-  transcript: {
-    role: 'student' | 'ai';
-    text: string;
-  }[]
+  type,
+  transcript
 ) => {
   const studentMessages = transcript.filter((m) => m.role === 'student');
   const totalChars = studentMessages.reduce((acc, row) => acc + row.text.length, 0);
@@ -73,7 +69,7 @@ const calcScore = (
   };
 };
 
-const activitiesRoutes: FastifyPluginAsync = async (fastify) => {
+const activitiesRoutes = async (fastify) => {
   fastify.post('/activities/next-turn', { preHandler: fastify.authorize([Role.STUDENT]) }, async (request, reply) => {
     if (!request.authUser) {
       return reply.code(401).send(errorResponse('UNAUTHORIZED', 'Unauthorized', request.traceId));
@@ -117,7 +113,7 @@ const activitiesRoutes: FastifyPluginAsync = async (fastify) => {
       transcript
     });
 
-    const nextTranscript = [...transcript, { role: 'ai' as const, text: ai.aiText }];
+    const nextTranscript = [...transcript, { role: 'ai', text: ai.aiText }];
 
     return {
       type: parsed.data.type,

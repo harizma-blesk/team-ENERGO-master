@@ -1,23 +1,7 @@
 import net from 'node:net';
-import type { FastifyBaseLogger } from 'fastify';
 import { prisma } from '../db/prisma.js';
 
-type SubjectPushItem = {
-  id?: string | number;
-  idSub?: string | number;
-  subName?: string;
-  teacherName?: string;
-  groupCode?: string;
-  semester?: string;
-};
-
-type PushConfig = {
-  port: number;
-  defaultGroupCode: string;
-  defaultSemester: string;
-};
-
-const toSafeCode = (value: string): string => {
+const toSafeCode = (value) => {
   const normalized = value
     .toLowerCase()
     .replace(/[^a-z0-9а-яё]+/gi, '_')
@@ -25,27 +9,27 @@ const toSafeCode = (value: string): string => {
   return normalized.length > 0 ? normalized.slice(0, 64) : 'subject';
 };
 
-const parsePayload = (payload: unknown): SubjectPushItem[] => {
+const parsePayload = (payload) => {
   if (Array.isArray(payload)) {
-    return payload as SubjectPushItem[];
+    return payload;
   }
 
   if (!payload || typeof payload !== 'object') {
     return [];
   }
 
-  const obj = payload as { items?: unknown[]; subjects?: unknown[] };
+  const obj = payload;
   if (Array.isArray(obj.items)) {
-    return obj.items as SubjectPushItem[];
+    return obj.items;
   }
   if (Array.isArray(obj.subjects)) {
-    return obj.subjects as SubjectPushItem[];
+    return obj.subjects;
   }
 
   return [];
 };
 
-const persistSubjects = async (items: SubjectPushItem[], config: PushConfig) => {
+const persistSubjects = async (items, config) => {
   const now = Date.now();
   let imported = 0;
 
@@ -122,7 +106,7 @@ const persistSubjects = async (items: SubjectPushItem[], config: PushConfig) => 
   return imported;
 };
 
-export const startSubjectPushTcpServer = (logger: FastifyBaseLogger, config: PushConfig): net.Server => {
+export const startSubjectPushTcpServer = (logger, config) => {
   const server = net.createServer((socket) => {
     let buffer = '';
 
@@ -139,7 +123,7 @@ export const startSubjectPushTcpServer = (logger: FastifyBaseLogger, config: Pus
           return;
         }
 
-        const parsed = JSON.parse(trimmed) as unknown;
+        const parsed = JSON.parse(trimmed);
         const items = parsePayload(parsed);
         const imported = await persistSubjects(items, config);
         logger.info(

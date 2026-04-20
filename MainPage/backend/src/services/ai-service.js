@@ -2,74 +2,28 @@ import { Difficulty, QuestionType } from '@prisma/client';
 import { env } from '../config/env.js';
 import { sha256 } from '../utils/hash.js';
 
-export type GeneratorInput = {
-  subjectName: string;
-  subjectDescription?: string | null;
-  syllabus?: unknown;
-  difficulty: Difficulty;
-  topicCodes: string[];
-  questionTypes: QuestionType[];
-  questionCount: number;
-  language: string;
-};
-
-export type GeneratedQuestion = {
-  type: QuestionType;
-  stem: string;
-  topicCode: string;
-  difficulty: Difficulty;
-  options?: { code: string; text: string; isCorrect?: boolean }[];
-  correctOptionCodes?: string[];
-  expectedAnswer?: string;
-  keywords?: string[];
-  rubric?: {
-    criterion: string;
-    maxPoints: number;
-  }[];
-  fingerprint: string;
-};
-
-type GeminiQuestionRaw = {
-  type: unknown;
-  stem: unknown;
-  topicCode: unknown;
-  options?: { code: string; text: string; isCorrect?: boolean }[];
-  correctOptionCodes?: string[];
-  expectedAnswer?: unknown;
-  keywords?: unknown;
-  rubric?: { criterion: string; maxPoints: number }[];
-};
-
-type GeminiResponse = {
-  candidates?: {
-    content?: {
-      parts?: { text?: string }[];
-    };
-  }[];
-};
-
 const TOPIC_PLACEHOLDERS = new Set(['core', 'general', 'topic', 'default', 'main']);
 
-const normalizeTopic = (value: string): string =>
+const normalizeTopic = (value) =>
   value
     .trim()
     .replace(/\s+/g, ' ')
     .slice(0, 80);
 
-const toTopicLabel = (value: string): string =>
+const toTopicLabel = (value) =>
   normalizeTopic(value)
     .replace(/[_-]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 
-const isPlaceholderTopic = (value: string): boolean => {
+const isPlaceholderTopic = (value) => {
   const normalized = value.trim().toLowerCase().replace(/\s+/g, '');
   return TOPIC_PLACEHOLDERS.has(normalized);
 };
 
-const uniqueTopics = (topics: string[]): string[] => {
-  const seen = new Set<string>();
-  const result: string[] = [];
+const uniqueTopics = (topics) => {
+  const seen = new Set();
+  const result = [];
   for (const topic of topics) {
     const normalized = normalizeTopic(topic);
     if (!normalized) {
@@ -85,12 +39,12 @@ const uniqueTopics = (topics: string[]): string[] => {
   return result;
 };
 
-const extractTopicsFromSyllabus = (syllabus: unknown): string[] => {
+const extractTopicsFromSyllabus = (syllabus) => {
   if (!Array.isArray(syllabus)) {
     return [];
   }
 
-  const extracted: string[] = [];
+  const extracted = [];
   for (const row of syllabus) {
     if (typeof row === 'string') {
       extracted.push(row);
@@ -99,7 +53,7 @@ const extractTopicsFromSyllabus = (syllabus: unknown): string[] => {
     if (!row || typeof row !== 'object') {
       continue;
     }
-    const obj = row as Record<string, unknown>;
+    const obj = row;
     const label =
       (typeof obj.topicCode === 'string' && obj.topicCode) ||
       (typeof obj.topic === 'string' && obj.topic) ||
@@ -114,7 +68,7 @@ const extractTopicsFromSyllabus = (syllabus: unknown): string[] => {
   return extracted;
 };
 
-const extractTopicsFromSubjectName = (subjectName: string): string[] => {
+const extractTopicsFromSubjectName = (subjectName) => {
   const words = subjectName
     .toLowerCase()
     .replace(/[^\p{L}\p{N}\s]/gu, ' ')
@@ -131,7 +85,7 @@ const extractTopicsFromSubjectName = (subjectName: string): string[] => {
   return [primary, `${primary} практика`, `${primary} типичные ошибки`];
 };
 
-const resolveTopicCodes = (input: GeneratorInput): string[] => {
+const resolveTopicCodes = (input) => {
   const explicit = uniqueTopics(input.topicCodes).filter((topic) => !isPlaceholderTopic(topic));
   if (explicit.length > 0) {
     return explicit.slice(0, 8);
@@ -155,7 +109,7 @@ const resolveTopicCodes = (input: GeneratorInput): string[] => {
     : ['основы', 'практика', 'типичные ошибки'];
 };
 
-const normalizeQuestionType = (value: unknown): QuestionType | null => {
+const normalizeQuestionType = (value) => {
   if (typeof value !== 'string') {
     return null;
   }
@@ -178,51 +132,51 @@ const normalizeQuestionType = (value: unknown): QuestionType | null => {
   }
 };
 
-const parseQuestionsPayload = (payload: unknown): GeminiQuestionRaw[] => {
+const parseQuestionsPayload = (payload) => {
   if (Array.isArray(payload)) {
-    return payload as GeminiQuestionRaw[];
+    return payload;
   }
   if (!payload || typeof payload !== 'object') {
     return [];
   }
 
-  const obj = payload as Record<string, unknown>;
+  const obj = payload;
 
   if (Array.isArray(obj.questions)) {
-    return obj.questions as GeminiQuestionRaw[];
+    return obj.questions;
   }
   if (Array.isArray(obj.items)) {
-    return obj.items as GeminiQuestionRaw[];
+    return obj.items;
   }
 
   const data = obj.data;
   if (data && typeof data === 'object') {
-    const nested = data as Record<string, unknown>;
+    const nested = data;
     if (Array.isArray(nested.questions)) {
-      return nested.questions as GeminiQuestionRaw[];
+      return nested.questions;
     }
     if (Array.isArray(nested.items)) {
-      return nested.items as GeminiQuestionRaw[];
+      return nested.items;
     }
   }
 
   return [];
 };
 
-const parseQuestionsText = (text: string): GeminiQuestionRaw[] => {
+const parseQuestionsText = (text) => {
   const trimmed = text.trim();
   const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
   const plain = fenced ? fenced[1].trim() : trimmed;
 
   try {
-    const parsed = JSON.parse(plain) as unknown;
+    const parsed = JSON.parse(plain);
     return parseQuestionsPayload(parsed);
   } catch {
     const objectStart = plain.indexOf('{');
     const objectEnd = plain.lastIndexOf('}');
     if (objectStart >= 0 && objectEnd > objectStart) {
       try {
-        const parsed = JSON.parse(plain.slice(objectStart, objectEnd + 1)) as unknown;
+        const parsed = JSON.parse(plain.slice(objectStart, objectEnd + 1));
         return parseQuestionsPayload(parsed);
       } catch {
         // ignore
@@ -233,7 +187,7 @@ const parseQuestionsText = (text: string): GeminiQuestionRaw[] => {
     const arrayEnd = plain.lastIndexOf(']');
     if (arrayStart >= 0 && arrayEnd > arrayStart) {
       try {
-        const parsed = JSON.parse(plain.slice(arrayStart, arrayEnd + 1)) as unknown;
+        const parsed = JSON.parse(plain.slice(arrayStart, arrayEnd + 1));
         return parseQuestionsPayload(parsed);
       } catch {
         // ignore
@@ -245,11 +199,11 @@ const parseQuestionsText = (text: string): GeminiQuestionRaw[] => {
 };
 
 const buildFallbackOptions = (
-  topic: string,
-  type: QuestionType,
-  subjectName: string,
-  idx: number
-): { code: string; text: string; isCorrect?: boolean }[] => {
+  topic,
+  type,
+  subjectName,
+  idx
+) => {
   const topicLabel = toTopicLabel(topic);
   const subjectLabel = subjectName.trim();
 
@@ -267,7 +221,7 @@ const buildFallbackOptions = (
     `Для "${topicLabel}" лучше отключить валидацию, чтобы ускорить работу системы.`
   ];
 
-  const pick = (arr: string[], shift: number) => arr[(idx + shift) % arr.length];
+  const pick = (arr, shift) => arr[(idx + shift) % arr.length];
 
   if (type === QuestionType.MULTI_CHOICE) {
     return [
@@ -287,11 +241,11 @@ const buildFallbackOptions = (
 };
 
 const normalizeGeneratedQuestions = (
-  questions: GeminiQuestionRaw[],
-  difficulty: Difficulty,
-  topicCodes: string[],
-  subjectName: string
-): GeneratedQuestion[] => {
+  questions,
+  difficulty,
+  topicCodes,
+  subjectName
+) => {
   return questions
     .map((q, index) => {
       const type = normalizeQuestionType(q.type);
@@ -307,7 +261,7 @@ const normalizeGeneratedQuestions = (
       if (type === QuestionType.OPEN_SHORT) {
         const keywordsRaw = Array.isArray(q.keywords) ? q.keywords : [];
         const keywords = keywordsRaw
-          .filter((value): value is string => typeof value === 'string')
+          .filter((value) => typeof value === 'string')
           .map((value) => normalizeTopic(value))
           .filter(Boolean)
           .slice(0, 8);
@@ -328,7 +282,7 @@ const normalizeGeneratedQuestions = (
             { criterion: 'Полнота', maxPoints: 2 }
           ],
           fingerprint: sha256(`${topicCode}:${stem.toLowerCase()}`)
-        } as GeneratedQuestion;
+        };
       }
 
       const normalizedOptions = Array.isArray(q.options)
@@ -346,7 +300,7 @@ const normalizeGeneratedQuestions = (
 
       let correctOptionCodes = Array.isArray(q.correctOptionCodes)
         ? q.correctOptionCodes
-            .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+            .filter((value) => typeof value === 'string' && value.trim().length > 0)
             .map((value) => value.trim().toUpperCase())
         : [];
 
@@ -365,7 +319,7 @@ const normalizeGeneratedQuestions = (
           options,
           correctOptionCodes: options.filter((option) => option.isCorrect).map((option) => option.code),
           fingerprint: sha256(`${topicCode}:${stem.toLowerCase()}`)
-        } as GeneratedQuestion;
+        };
       }
 
       return {
@@ -379,12 +333,12 @@ const normalizeGeneratedQuestions = (
         })),
         correctOptionCodes,
         fingerprint: sha256(`${topicCode}:${stem.toLowerCase()}`)
-      } as GeneratedQuestion;
+      };
     })
-    .filter((question): question is GeneratedQuestion => question !== null);
+    .filter((question) => question !== null);
 };
 
-const callGemini = async (input: GeneratorInput): Promise<GeneratedQuestion[] | null> => {
+const callGemini = async (input) => {
   if (!env.GEMINI_API_KEY) {
     return null;
   }
@@ -427,7 +381,7 @@ const callGemini = async (input: GeneratorInput): Promise<GeneratedQuestion[] | 
     }
   };
 
-  const errors: string[] = [];
+  const errors = [];
 
   for (const endpoint of endpoints) {
     try {
@@ -453,9 +407,9 @@ const callGemini = async (input: GeneratorInput): Promise<GeneratedQuestion[] | 
         continue;
       }
 
-      let raw: GeminiResponse;
+      let raw;
       try {
-        raw = JSON.parse(rawText) as GeminiResponse;
+        raw = JSON.parse(rawText);
       } catch {
         errors.push(`${endpoint.tag} invalid JSON response`);
         continue;
@@ -464,7 +418,7 @@ const callGemini = async (input: GeneratorInput): Promise<GeneratedQuestion[] | 
       const text = raw.candidates
         ?.flatMap((candidate) => candidate.content?.parts ?? [])
         .map((part) => part.text?.trim())
-        .find((value): value is string => Boolean(value && value.length > 0));
+        .find((value) => Boolean(value && value.length > 0));
 
       if (!text) {
         errors.push(`${endpoint.tag} empty candidate text`);
@@ -498,12 +452,12 @@ const callGemini = async (input: GeneratorInput): Promise<GeneratedQuestion[] | 
 };
 
 const buildFallbackQuestion = (
-  topic: string,
-  type: QuestionType,
-  difficulty: Difficulty,
-  idx: number,
-  subjectName: string
-): GeneratedQuestion => {
+  topic,
+  type,
+  difficulty,
+  idx,
+  subjectName
+) => {
   const difficultyHint =
     difficulty === Difficulty.HARD ? 'углубленный уровень' : difficulty === Difficulty.MEDIUM ? 'базовый+ уровень' : 'базовый уровень';
 
@@ -546,10 +500,10 @@ const buildFallbackQuestion = (
   };
 };
 
-const fallbackGenerateQuestions = (input: GeneratorInput): GeneratedQuestion[] => {
+const fallbackGenerateQuestions = (input) => {
   const topics = resolveTopicCodes(input);
   const types = input.questionTypes.length > 0 ? input.questionTypes : [QuestionType.SINGLE_CHOICE];
-  const questions: GeneratedQuestion[] = [];
+  const questions = [];
 
   for (let i = 0; i < input.questionCount; i += 1) {
     const topic = topics[i % topics.length];
@@ -560,7 +514,7 @@ const fallbackGenerateQuestions = (input: GeneratorInput): GeneratedQuestion[] =
   return questions;
 };
 
-export const generateQuestions = async (input: GeneratorInput): Promise<GeneratedQuestion[]> => {
+export const generateQuestions = async (input) => {
   const topicCodes = resolveTopicCodes(input);
   const preparedInput = {
     ...input,
@@ -586,35 +540,12 @@ export const generateQuestions = async (input: GeneratorInput): Promise<Generate
   return fallbackGenerateQuestions(preparedInput);
 };
 
-type GradeInputItem = {
-  questionId: string;
-  type: QuestionType;
-  topicCode: string;
-  maxPoints: number;
-  correctOptionCodes: string[];
-  keywords: string[];
-  selectedOptionIds: string[];
-  answerText: string;
-};
+const normalizeText = (text) => text.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
 
-export type GradeResult = {
-  answers: {
-    questionId: string;
-    isCorrect: boolean;
-    scorePoints: number;
-    rationale: string;
-  }[];
-  scorePoints: number;
-  scorePercent: number;
-  mistakesByTopic: Record<string, number>;
-};
-
-const normalizeText = (text: string): string => text.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
-
-export const gradeAnswers = (items: GradeInputItem[]): GradeResult => {
+export const gradeAnswers = (items) => {
   let total = 0;
   let scored = 0;
-  const mistakesByTopic: Record<string, number> = {};
+  const mistakesByTopic = {};
 
   const answers = items.map((item) => {
     total += item.maxPoints;
@@ -667,7 +598,7 @@ export const gradeAnswers = (items: GradeInputItem[]): GradeResult => {
   };
 };
 
-export const buildRecommendations = (mistakesByTopic: Record<string, number>): { topicCode: string; text: string }[] => {
+export const buildRecommendations = (mistakesByTopic) => {
   return Object.entries(mistakesByTopic)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)

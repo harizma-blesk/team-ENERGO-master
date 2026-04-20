@@ -1,4 +1,3 @@
-import type { FastifyPluginAsync } from 'fastify';
 import { Role } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../db/prisma.js';
@@ -29,7 +28,7 @@ const auditQuerySchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(50)
 });
 
-const adminRoutes: FastifyPluginAsync = async (fastify) => {
+const adminRoutes = async (fastify) => {
   const auth = fastify.authorize([Role.ADMIN]);
 
   fastify.post('/admin/users/:userId/role', { preHandler: auth }, async (request, reply) => {
@@ -38,7 +37,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.code(400).send(errorResponse('VALIDATION_ERROR', 'Invalid payload', request.traceId));
     }
 
-    const { userId } = request.params as { userId: string };
+    const { userId } = request.params;
     const user = await prisma.user.update({
       where: { id: userId },
       data: { role: parsed.data.role }

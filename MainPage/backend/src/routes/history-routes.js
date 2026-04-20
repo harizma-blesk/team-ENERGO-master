@@ -1,4 +1,3 @@
-import type { FastifyPluginAsync } from 'fastify';
 import { Role } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../db/prisma.js';
@@ -11,7 +10,7 @@ const listQuery = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(20)
 });
 
-const historyRoutes: FastifyPluginAsync = async (fastify) => {
+const historyRoutes = async (fastify) => {
   fastify.get('/history/attempts', { preHandler: fastify.authorize([Role.STUDENT]) }, async (request, reply) => {
     if (!request.authUser) {
       return reply.code(401).send(errorResponse('UNAUTHORIZED', 'Unauthorized', request.traceId));
@@ -75,7 +74,7 @@ const historyRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.code(401).send(errorResponse('UNAUTHORIZED', 'Unauthorized', request.traceId));
     }
 
-    const { attemptId } = request.params as { attemptId: string };
+    const { attemptId } = request.params;
 
     const attempt = await prisma.testAttempt.findFirst({
       where: {

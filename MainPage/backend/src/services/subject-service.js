@@ -1,19 +1,8 @@
 import { prisma } from '../db/prisma.js';
 import { env } from '../config/env.js';
-import { fetchRemoteSchedule, type ScheduleQuery } from './schedule-provider.js';
+import { fetchRemoteSchedule } from './schedule-provider.js';
 
-export type SubjectListItem = {
-  subjectId: string;
-  subjectCode: string;
-  subjectName: string;
-  semester?: string;
-  teacher?: {
-    externalId?: string;
-    name?: string;
-  };
-};
-
-const upsertScheduleCache = async (query: ScheduleQuery, remoteItems: Awaited<ReturnType<typeof fetchRemoteSchedule>>) => {
+const upsertScheduleCache = async (query, remoteItems) => {
   for (const item of remoteItems) {
     const groupCode = item.groupCode || query.groupCode || 'GLOBAL';
     const group = await prisma.group.upsert({
@@ -78,8 +67,8 @@ const upsertScheduleCache = async (query: ScheduleQuery, remoteItems: Awaited<Re
   }
 };
 
-const buildSubjectResponse = (items: Awaited<ReturnType<typeof fetchRemoteSchedule>>): SubjectListItem[] => {
-  const map = new Map<string, SubjectListItem>();
+const buildSubjectResponse = (items) => {
+  const map = new Map();
 
   for (const item of items) {
     const key = item.externalSubjectCode;
@@ -100,7 +89,7 @@ const buildSubjectResponse = (items: Awaited<ReturnType<typeof fetchRemoteSchedu
   return [...map.values()];
 };
 
-const loadFromCache = async (query: ScheduleQuery): Promise<SubjectListItem[]> => {
+const loadFromCache = async (query) => {
   const scheduleItems = await prisma.scheduleItem.findMany({
     where: {
       ...(query.teacherExternalId ? { teacherExternalId: query.teacherExternalId } : {})
@@ -115,7 +104,7 @@ const loadFromCache = async (query: ScheduleQuery): Promise<SubjectListItem[]> =
     take: 500
   });
 
-  const bySubject = new Map<string, SubjectListItem>();
+  const bySubject = new Map();
   for (const row of scheduleItems) {
     const subjectCode = row.subject.externalSubjectCode ?? row.subject.id;
     if (!bySubject.has(subjectCode)) {
@@ -134,13 +123,7 @@ const loadFromCache = async (query: ScheduleQuery): Promise<SubjectListItem[]> =
   return [...bySubject.values()];
 };
 
-export const getSubjectsFromSchedule = async (query: ScheduleQuery): Promise<{
-  source: 'REMOTE_SCHEDULE' | 'CACHE';
-  stale: boolean;
-  syncedAt: string;
-  items: SubjectListItem[];
-  reason?: string;
-}> => {
+export const getSubjectsFromSchedule = async (query) => {
   if (env.SCHEDULE_PROVIDER_MODE === 'push') {
     const cachedItems = await loadFromCache(query);
     return {
@@ -176,7 +159,7 @@ export const getSubjectsFromSchedule = async (query: ScheduleQuery): Promise<{
   }
 };
 
-export const resolveSubjectId = async (subjectIdOrCode: string): Promise<string | null> => {
+export const resolveSubjectId = async (subjectIdOrCode) => {
   const direct = await prisma.subject.findUnique({
     where: { id: subjectIdOrCode },
     select: { id: true }

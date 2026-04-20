@@ -58,7 +58,8 @@ CREATE TABLE "TeacherProfile" (
 CREATE TABLE "Subject" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "externalSubjectCode" TEXT UNIQUE,
-    "name" TEXT NOT NULL,
+    "name" TEXT NOT NULL UNIQUE,
+    "teacher_name" TEXT,
     "description" TEXT,
     "syllabusJson" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP

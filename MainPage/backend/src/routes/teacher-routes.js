@@ -1,4 +1,3 @@
-import type { FastifyPluginAsync } from 'fastify';
 import { ActivityReviewStatus, ActivityType, Role } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../db/prisma.js';
@@ -27,7 +26,7 @@ const activitiesQuerySchema = z.object({
   status: z.nativeEnum(ActivityReviewStatus).optional()
 });
 
-const teacherRoutes: FastifyPluginAsync = async (fastify) => {
+const teacherRoutes = async (fastify) => {
   const auth = fastify.authorize([Role.TEACHER, Role.ADMIN]);
 
   fastify.get('/teacher/analytics/summary', { preHandler: auth }, async (request, reply) => {
@@ -86,7 +85,7 @@ const teacherRoutes: FastifyPluginAsync = async (fastify) => {
       : 0;
     const passRate = scored.length ? Number((scored.filter((a) => a.passed).length / scored.length).toFixed(2)) : 0;
 
-    const weekMap = new Map<string, number[]>();
+    const weekMap = new Map();
     for (const row of scored) {
       if (!row.submittedAt) {
         continue;

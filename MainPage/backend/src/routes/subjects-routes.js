@@ -1,4 +1,3 @@
-import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../db/prisma.js';
 import { getSubjectsFromSchedule } from '../services/subject-service.js';
@@ -15,7 +14,7 @@ const scheduleQuerySchema = z.object({
   dateTo: z.string().optional()
 });
 
-const subjectsRoutes: FastifyPluginAsync = async (fastify) => {
+const subjectsRoutes = async (fastify) => {
   fastify.get('/subjects', { preHandler: fastify.authenticate }, async (request, reply) => {
     const parsed = querySchema.safeParse(request.query);
     if (!parsed.success) {
@@ -46,10 +45,7 @@ const subjectsRoutes: FastifyPluginAsync = async (fastify) => {
       return { items: [] };
     }
 
-    const where: {
-      groupId: string;
-      startsAt?: { gte?: Date; lte?: Date };
-    } = {
+    const where = {
       groupId: group.id
     };
 

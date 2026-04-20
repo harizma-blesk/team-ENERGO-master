@@ -1,11 +1,10 @@
-import type { FastifyPluginAsync } from 'fastify';
 //import { loadSubjectsFromCache } from '../services/subject-service.js';
 
-const scheduleCompatRoutes: FastifyPluginAsync = async (fastify) => {
+const scheduleCompatRoutes = async (fastify) => {
   // Compatibility endpoint used by older schedule providers
   // Returns array of items in a simple Java-friendly format: { id, subName, teacherName }
   fastify.get('/subjects', async (request) => {
-    const q = request.query as Record<string, string | undefined>;
+    const q = request.query;
     const query = {
       groupCode: q.groupCode,
       semester: q.semester,

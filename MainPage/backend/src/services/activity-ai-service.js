@@ -1,14 +1,9 @@
 import { ActivityType } from '@prisma/client';
 import { env } from '../config/env.js';
 
-export type ActivityTranscriptMessage = {
-  role: 'student' | 'ai';
-  text: string;
-};
-
 const DEBATE_ROLES = ['Скептик', 'Клиент', 'Профессор'];
 
-const trimTranscript = (transcript: ActivityTranscriptMessage[]): ActivityTranscriptMessage[] =>
+const trimTranscript = (transcript) =>
   transcript
     .map((item) => ({
       role: item.role,
@@ -17,7 +12,7 @@ const trimTranscript = (transcript: ActivityTranscriptMessage[]): ActivityTransc
     .filter((item) => item.text.length > 0)
     .slice(-16);
 
-const getLastStudentMessage = (transcript: ActivityTranscriptMessage[]): string => {
+const getLastStudentMessage = (transcript) => {
   for (let i = transcript.length - 1; i >= 0; i -= 1) {
     if (transcript[i].role === 'student') {
       return transcript[i].text;
@@ -26,23 +21,21 @@ const getLastStudentMessage = (transcript: ActivityTranscriptMessage[]): string 
   return '';
 };
 
-const getDebateRole = (turnNo: number): string => DEBATE_ROLES[(turnNo - 1) % DEBATE_ROLES.length];
+const getDebateRole = (turnNo) => DEBATE_ROLES[(turnNo - 1) % DEBATE_ROLES.length];
 
-const extractModelText = (payload: unknown): string | null => {
+const extractModelText = (payload) => {
   if (!payload || typeof payload !== 'object') {
     return null;
   }
-  const raw = payload as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[];
-  };
+  const raw = payload;
   const text = raw.candidates
     ?.flatMap((candidate) => candidate.content?.parts ?? [])
     .map((part) => part.text?.trim())
-    .find((part): part is string => Boolean(part && part.length > 0));
+    .find((part) => Boolean(part && part.length > 0));
   return text ?? null;
 };
 
-const callGeminiText = async (prompt: string): Promise<string | null> => {
+const callGeminiText = async (prompt) => {
   if (!env.GEMINI_API_KEY) {
     return null;
   }
@@ -71,7 +64,7 @@ const callGeminiText = async (prompt: string): Promise<string | null> => {
       if (!res.ok) {
         continue;
       }
-      const parsed = (await res.json()) as unknown;
+      const parsed = await res.json();
       const text = extractModelText(parsed);
       if (text && text.length > 0) {
         return text;
@@ -84,13 +77,7 @@ const callGeminiText = async (prompt: string): Promise<string | null> => {
   return null;
 };
 
-const fallbackReply = (params: {
-  type: ActivityType;
-  subjectName: string;
-  turnNo: number;
-  lastStudentMessage: string;
-  roleLabel?: string;
-}): string => {
+const fallbackReply = (params) => {
   const { type, subjectName, turnNo, lastStudentMessage, roleLabel } = params;
 
   if (type === ActivityType.FEYNMAN) {
@@ -111,12 +98,7 @@ const fallbackReply = (params: {
   return `[${role}] Контраргумент к твоей позиции: "${shortRef}". Ответь на возражение и усили аргументацию практическим примером.`;
 };
 
-export const generateActivityReply = async (params: {
-  type: ActivityType;
-  subjectName: string;
-  transcript: ActivityTranscriptMessage[];
-  language?: string;
-}): Promise<{ aiText: string; roleLabel?: string }> => {
+export const generateActivityReply = async (params) => {
   const transcript = trimTranscript(params.transcript);
   const turnNo = transcript.filter((item) => item.role === 'ai').length + 1;
   const roleLabel = params.type === ActivityType.DEBATE ? getDebateRole(turnNo) : undefined;

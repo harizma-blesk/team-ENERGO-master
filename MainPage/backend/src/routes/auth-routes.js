@@ -1,4 +1,3 @@
-import type { FastifyPluginAsync } from 'fastify';
 import { Role } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../db/prisma.js';
@@ -23,12 +22,12 @@ const refreshSchema = z.object({
   refreshToken: z.string().min(20).optional()
 }).default({});
 
-const makeStudentNo = (): string => `STU-${Date.now()}`;
+const makeStudentNo = () => `STU-${Date.now()}`;
 const DEFAULT_STUDENT_GROUP_CODE = 'GLOBAL';
 
 const REFRESH_COOKIE_NAME = 'visualsite_rt';
 
-const parseRefreshTtlSec = (): number => {
+const parseRefreshTtlSec = () => {
   const raw = process.env.JWT_REFRESH_EXPIRES_IN ?? '30d';
   const daysMatch = raw.match(/^(\d+)d$/);
   if (daysMatch) {
@@ -41,7 +40,7 @@ const parseRefreshTtlSec = (): number => {
   return 30 * 24 * 60 * 60;
 };
 
-const makeRefreshCookie = (refreshToken: string): string => {
+const makeRefreshCookie = (refreshToken) => {
   const parts = [
     `${REFRESH_COOKIE_NAME}=${encodeURIComponent(refreshToken)}`,
     'Path=/',
@@ -55,7 +54,7 @@ const makeRefreshCookie = (refreshToken: string): string => {
   return parts.join('; ');
 };
 
-const makeClearRefreshCookie = (): string => {
+const makeClearRefreshCookie = () => {
   const parts = [
     `${REFRESH_COOKIE_NAME}=`,
     'Path=/',
@@ -70,7 +69,7 @@ const makeClearRefreshCookie = (): string => {
   return parts.join('; ');
 };
 
-const readCookie = (cookieHeader: string | undefined, name: string): string | null => {
+const readCookie = (cookieHeader, name) => {
   if (!cookieHeader) {
     return null;
   }
@@ -90,7 +89,7 @@ const readCookie = (cookieHeader: string | undefined, name: string): string | nu
   }
 };
 
-const authRoutes: FastifyPluginAsync = async (fastify) => {
+const authRoutes = async (fastify) => {
   fastify.get('/me', { preHandler: fastify.authenticate }, async (request, reply) => {
     if (!request.authUser) {
       return reply.code(401).send(errorResponse('UNAUTHORIZED', 'Authentication required', request.traceId));

@@ -30,7 +30,7 @@ const buildApp = () => {
 
 const start = async () => {
   const app = buildApp();
-  let pushTcpServer: import('node:net').Server | null = null;
+  let pushTcpServer = null;
 
   try {
     await app.listen({ port: env.PORT, host: '0.0.0.0' });
@@ -51,8 +51,8 @@ const start = async () => {
   const gracefulShutdown = async () => {
     try {
       if (pushTcpServer) {
-        await new Promise<void>((resolve, reject) => {
-          pushTcpServer?.close((error) => {
+        await new Promise((resolve, reject) => {
+          pushTcpServer.close((error) => {
             if (error) {
               reject(error);
               return;

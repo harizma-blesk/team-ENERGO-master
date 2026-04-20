@@ -1,4 +1,3 @@
-import type { FastifyPluginAsync } from 'fastify';
 import authRoutes from './auth-routes.js';
 import subjectsRoutes from './subjects-routes.js';
 import testsRoutes from './tests-routes.js';
@@ -6,7 +5,7 @@ import historyRoutes from './history-routes.js';
 import activitiesRoutes from './activities-routes.js';
 import roomsRoutes from './rooms-routes.js';
 
-const apiRoutes: FastifyPluginAsync = async (fastify) => {
+const apiRoutes = async (fastify) => {
   fastify.get('/health', async () => ({ ok: true, service: 'visualsite-backend' }));
 
   await fastify.register(authRoutes, { prefix: '/auth' });
