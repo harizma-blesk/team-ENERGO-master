@@ -1,25 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { loginRequest, logoutRequest, meRequest, registerRequest } from '../api/auth-api';
 import { setStoredTokens } from './auth-storage';
-import type { AuthUser } from '../types';
 
-type AuthContextValue = {
-  user: AuthUser | null;
-  isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (payload: {
-    email: string;
-    password: string;
-    fullName: string;
-    locale?: string;
-  }) => Promise<void>;
-  logout: () => Promise<void>;
-};
+const AuthContext = createContext(undefined);
 
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
-
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<AuthUser | null>(null);
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const reloadUser = useCallback(async () => {
@@ -37,18 +23,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     reloadUser().finally(() => setIsLoading(false));
   }, [reloadUser]);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email, password) => {
     await loginRequest({ email, password });
     await reloadUser();
   }, [reloadUser]);
 
   const register = useCallback(
-    async (payload: {
-      email: string;
-      password: string;
-      fullName: string;
-      locale?: string;
-    }) => {
+    async (payload) => {
       await registerRequest(payload);
       await reloadUser();
     },

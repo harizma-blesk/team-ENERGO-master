@@ -1,11 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Alert, Button, Card, Drawer, Space, Table, Tag, Typography } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
 import { loadHistory, loadHistoryDetails } from '../api/history-api';
 
-const attemptOrdinalLabel = (n: number): string => {
-  const labels: Record<number, string> = {
+const attemptOrdinalLabel = (n) => {
+  const labels = {
     1: 'Первая попытка',
     2: 'Вторая попытка',
     3: 'Третья попытка',
@@ -18,16 +17,8 @@ const attemptOrdinalLabel = (n: number): string => {
   return `${n}-я попытка`;
 };
 
-type HistoryRow = {
-  attemptId: string;
-  scorePercent: number;
-  passed: boolean;
-  submittedAt: string;
-  attemptOrder: number;
-};
-
 const HistoryPage = () => {
-  const [selectedAttemptId, setSelectedAttemptId] = useState<string | null>(null);
+  const [selectedAttemptId, setSelectedAttemptId] = useState(null);
 
   const historyQuery = useQuery({
     queryKey: ['history'],
@@ -36,25 +27,20 @@ const HistoryPage = () => {
 
   const detailsQuery = useQuery({
     queryKey: ['history-details', selectedAttemptId],
-    queryFn: () => loadHistoryDetails(selectedAttemptId as string),
+    queryFn: () => loadHistoryDetails(selectedAttemptId),
     enabled: Boolean(selectedAttemptId)
   });
 
   const rows = useMemo(() => {
-    const items = (historyQuery.data?.items ?? []) as Array<{
-      attemptId: string;
-      scorePercent: number;
-      passed: boolean;
-      submittedAt: string;
-    }>;
-    const map = new Map<string, number>();
+    const items = (historyQuery.data?.items ?? []);
+    const map = new Map();
     [...items]
       .sort((a, b) => {
         const aTime = a.submittedAt ? new Date(a.submittedAt).getTime() : 0;
         const bTime = b.submittedAt ? new Date(b.submittedAt).getTime() : 0;
         return aTime - bTime;
       })
-      .forEach((item: { attemptId: string }, idx) => {
+      .forEach((item, idx) => {
         map.set(item.attemptId, idx + 1);
       });
 
@@ -69,7 +55,7 @@ const HistoryPage = () => {
     [rows, selectedAttemptId]
   );
 
-  const columns: ColumnsType<HistoryRow> = [
+  const columns = [
     {
       title: 'Попытка',
       dataIndex: 'attemptOrder',
@@ -128,8 +114,8 @@ const HistoryPage = () => {
               Попытка: {attemptOrdinalLabel(selectedAttemptOrder ?? 1)}
             </Typography.Text>
             <Typography.Paragraph>{detailsQuery.data.feedback?.summary}</Typography.Paragraph>
-                          {(detailsQuery.data.answers ?? []).map((answer: { questionId: string; score: number; rationale: string }) => {
-                const question = (detailsQuery.data.questions ?? []).find((q: { id: string; text: string }) => q.id === answer.questionId);
+                          {(detailsQuery.data.answers ?? []).map((answer) => {
+                const question = (detailsQuery.data.questions ?? []).find((q) => q.id === answer.questionId);
                 return (
                   <Card size="small" key={answer.questionId}>
                     <Typography.Text strong>{question?.text ?? answer.questionId}</Typography.Text>

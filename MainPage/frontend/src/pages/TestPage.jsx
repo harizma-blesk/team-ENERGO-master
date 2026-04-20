@@ -15,15 +15,7 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import { getTest, submitTest } from '../api/tests-api';
 
-type StudentAnswerDraft = {
-  selectedOptionIds?: string[];
-  answerText?: string;
-};
-
-const isQuestionAnswered = (
-  question: { type: 'SINGLE_CHOICE' | 'MULTI_CHOICE' | 'OPEN_SHORT'; id: string },
-  answer: StudentAnswerDraft | undefined
-) => {
+const isQuestionAnswered = (question, answer) => {
   if (!answer) {
     return false;
   }
@@ -40,7 +32,7 @@ const TestPage = () => {
   const navigate = useNavigate();
   const [current, setCurrent] = useState(0);
   const [elapsed, setElapsed] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, StudentAnswerDraft>>({});
+  const [answers, setAnswers] = useState({});
 
   const testQuery = useQuery({
     queryKey: ['test', testId],
@@ -54,10 +46,7 @@ const TestPage = () => {
   }, []);
 
   const submitMutation = useMutation({
-    mutationFn: (payload: {
-      answers: { questionId: string; selectedOptionIds?: string[]; answerText?: string }[];
-      clientDurationSec: number;
-    }) => submitTest(testId, payload),
+    mutationFn: (payload) => submitTest(testId, payload),
     onSuccess: (result) => {
       navigate(`/results/${result.attemptId}`);
     }
@@ -130,7 +119,7 @@ const TestPage = () => {
             onChange={(values) => {
               setAnswers((prev) => ({
                 ...prev,
-                [question.id]: { selectedOptionIds: values as string[] }
+                [question.id]: { selectedOptionIds: values }
               }));
             }}
           >

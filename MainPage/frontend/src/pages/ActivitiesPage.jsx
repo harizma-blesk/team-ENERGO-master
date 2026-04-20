@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Alert, Button, Card, Input, List, Select, Space, Tag, Typography } from 'antd';
-import { createActivity, loadActivityHistory, nextActivityTurn, type ActivityMessage } from '../api/activities-api';
+import { createActivity, loadActivityHistory, nextActivityTurn } from '../api/activities-api';
 import { loadSubjects } from '../api/subjects-api';
 
 const ActivitiesPage = () => {
-  const [activityType, setActivityType] = useState<'FEYNMAN' | 'DEBATE'>('FEYNMAN');
-  const [subjectId, setSubjectId] = useState<string | undefined>();
+  const [activityType, setActivityType] = useState('FEYNMAN');
+  const [subjectId, setSubjectId] = useState();
   const [draft, setDraft] = useState('');
-  const [transcript, setTranscript] = useState<ActivityMessage[]>([]);
-  const [saveInfo, setSaveInfo] = useState<string | null>(null);
+  const [transcript, setTranscript] = useState([]);
+  const [saveInfo, setSaveInfo] = useState(null);
 
   const subjectsQuery = useQuery({
     queryKey: ['subjects-for-activities'],
@@ -108,7 +108,7 @@ const ActivitiesPage = () => {
             <Select
               style={{ minWidth: 220 }}
               value={activityType}
-              onChange={(value: 'FEYNMAN' | 'DEBATE') => {
+              onChange={(value) => {
                 setActivityType(value);
                 setTranscript([]);
                 setSaveInfo(null);
@@ -122,7 +122,7 @@ const ActivitiesPage = () => {
             <Select
               style={{ minWidth: 360 }}
               value={subjectId}
-              onChange={(value: string) => {
+              onChange={(value) => {
                 setSubjectId(value);
                 setTranscript([]);
                 setSaveInfo(null);

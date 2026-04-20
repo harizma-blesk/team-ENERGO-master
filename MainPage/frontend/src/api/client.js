@@ -6,9 +6,9 @@ export const api = axios.create({
   withCredentials: true
 });
 
-let refreshPromise: Promise<string | null> | null = null;
+let refreshPromise = null;
 
-const refreshAccessToken = async (): Promise<string | null> => {
+const refreshAccessToken = async () => {
   const tokens = getStoredTokens();
 
   try {
@@ -39,7 +39,7 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
-    const originalRequest = error.config as (typeof error.config & { __isRetryRequest?: boolean }) | undefined;
+    const originalRequest = error.config;
 
     if (!error.response || error.response.status !== 401 || originalRequest?.__isRetryRequest) {
       throw error;

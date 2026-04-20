@@ -1,14 +1,14 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
-import ProtectedRoute from './components/ProtectedRoute';
-import MainLayout from './layouts/MainLayout';
-import ActivitiesPage from './pages/ActivitiesPage';
-import HistoryPage from './pages/HistoryPage';
-import LoginPage from './pages/LoginPage';
-import ResultPage from './pages/ResultPage';
-import RoomsPage from './pages/RoomsPage';
-import StudentDashboardPage from './pages/StudentDashboardPage';
-import TestPage from './pages/TestPage';
-import { useAuth } from './store/auth-store';
+import ProtectedRoute from './components/ProtectedRoute.jsx';
+import MainLayout from './layouts/MainLayout.jsx';
+import ActivitiesPage from './pages/ActivitiesPage.jsx';
+import HistoryPage from './pages/HistoryPage.jsx';
+import LoginPage from './pages/LoginPage.jsx';
+import ResultPage from './pages/ResultPage.jsx';
+import RoomsPage from './pages/RoomsPage.jsx';
+import StudentDashboardPage from './pages/StudentDashboardPage.jsx';
+import TestPage from './pages/TestPage.jsx';
+import { useAuth } from './store/auth-store.jsx';
 
 const HomeRedirect = () => {
   const { user } = useAuth();

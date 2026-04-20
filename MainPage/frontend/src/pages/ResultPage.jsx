@@ -3,25 +3,6 @@ import { Alert, Card, Col, List, Progress, Row, Space, Spin, Statistic, Tag, Typ
 import { useParams } from 'react-router-dom';
 import { getAttemptResult, getAttemptReview } from '../api/tests-api';
 
-type MaterialLink = {
-  title?: string;
-  url?: string;
-  source?: string;
-};
-
-type MistakeItem = {
-  topicCode?: string;
-  why?: string;
-  fix?: string;
-  materials?: MaterialLink[];
-};
-
-type RecommendationItem = {
-  topicCode?: string;
-  text?: string;
-  materials?: MaterialLink[];
-};
-
 const ResultPage = () => {
   const { attemptId = '' } = useParams();
 
@@ -70,7 +51,7 @@ const ResultPage = () => {
             <List
               dataSource={review?.mistakes ?? []}
               locale={{ emptyText: 'Ошибок не обнаружено' }}
-              renderItem={(item: MistakeItem) => (
+              renderItem={(item) => (
                 <List.Item>
                   <Space direction="vertical">
                     <Tag color="orange">{item.topicCode ?? 'topic'}</Tag>
@@ -100,7 +81,7 @@ const ResultPage = () => {
             <List
               dataSource={review?.recommendations ?? []}
               locale={{ emptyText: 'Рекомендаций пока нет' }}
-              renderItem={(item: RecommendationItem) => (
+              renderItem={(item) => (
                 <List.Item>
                   <Space direction="vertical">
                     {item.topicCode ? <Tag>{item.topicCode}</Tag> : null}

@@ -6,7 +6,7 @@ import { useAuth } from '../store/auth-store';
 const LoginPage = () => {
   const { login, register } = useAuth();
   const navigate = useNavigate();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
   return (

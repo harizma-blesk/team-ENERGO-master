@@ -5,12 +5,11 @@ import { useNavigate } from 'react-router-dom';
 import { loadSubjects } from '../api/subjects-api';
 import { generateTest } from '../api/tests-api';
 import { useAuth } from '../store/auth-store';
-import type { SubjectListItem } from '../types';
 
 const StudentDashboardPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [selectedSubject, setSelectedSubject] = useState<string | undefined>();
+  const [selectedSubject, setSelectedSubject] = useState();
 
   const subjectsQuery = useQuery({
     queryKey: ['subjects'],
@@ -65,7 +64,7 @@ const StudentDashboardPage = () => {
             <List
               dataSource={subjects}
               locale={{ emptyText: 'Нет предметов' }}
-              renderItem={(subject: SubjectListItem) => (
+              renderItem={(subject) => (
                 <List.Item
                   actions={[
                     <Button key="pick" onClick={() => setSelectedSubject(subject.subjectId)}>

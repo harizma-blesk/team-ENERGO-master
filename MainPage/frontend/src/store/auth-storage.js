@@ -1,24 +1,19 @@
-export type AuthTokens = {
-  accessToken: string;
-  refreshToken?: string;
-};
-
 const TOKEN_KEY = 'visualsite_tokens';
 
-export const getStoredTokens = (): AuthTokens | null => {
+export const getStoredTokens = () => {
   const raw = localStorage.getItem(TOKEN_KEY);
   if (!raw) {
     return null;
   }
 
   try {
-    return JSON.parse(raw) as AuthTokens;
+    return JSON.parse(raw);
   } catch {
     return null;
   }
 };
 
-export const setStoredTokens = (tokens: AuthTokens | null) => {
+export const setStoredTokens = (tokens) => {
   if (!tokens) {
     localStorage.removeItem(TOKEN_KEY);
     return;

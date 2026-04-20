@@ -31,7 +31,6 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { findFreeRooms, loadAuditories } from '../api/rooms-api';
-import type { FindRoomQuery, RoomInfo } from '../types';
 
 /* ── Locations hardcoded (match the Java .env LOCATIONS_LIST) ── */
 const LOCATIONS = [
@@ -41,7 +40,7 @@ const LOCATIONS = [
 
 const DURATION_OPTIONS = [30, 60, 90, 120];
 
-const cameraStatusTag = (room: RoomInfo) => {
+const cameraStatusTag = (room) => {
   if (room.camera_status === 'online' && room.camera_free) {
     return <Tag icon={<VideoCameraOutlined />} color="success">Камера: свободно</Tag>;
   }
@@ -53,7 +52,7 @@ const cameraStatusTag = (room: RoomInfo) => {
 
 const RoomsPage = () => {
   const [form] = Form.useForm();
-  const [selectedLocation, setSelectedLocation] = useState<string>(LOCATIONS[0].id);
+  const [selectedLocation, setSelectedLocation] = useState(LOCATIONS[0].id);
 
   const auditoriesQuery = useQuery({
     queryKey: ['auditories'],
@@ -70,7 +69,7 @@ const RoomsPage = () => {
   const handleSearch = async () => {
     try {
       const values = await form.validateFields();
-      const query: FindRoomQuery = {
+      const query = {
         location_id: values.location_id,
         start_at: dayjs(values.date)
           .hour(dayjs(values.time).hour())
@@ -206,7 +205,7 @@ const RoomsPage = () => {
           type="error"
           showIcon
           message="Ошибка поиска"
-          description={(searchMutation.error as Error).message}
+          description={searchMutation.error.message}
           action={
             <Button icon={<ReloadOutlined />} onClick={handleSearch}>
               Повторить

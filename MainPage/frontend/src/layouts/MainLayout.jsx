@@ -4,7 +4,7 @@ import { useAuth } from '../store/auth-store';
 
 const { Header, Content } = Layout;
 
-const MainLayout = ({ children }: { children: React.ReactNode }) => {
+const MainLayout = ({ children }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
