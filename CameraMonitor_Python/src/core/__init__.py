@@ -1,0 +1,1 @@
+# Camera Monitor Python - Core Package
