@@ -1,7 +1,0 @@
-<RCC>
-    <qresource prefix="/qml">
-        <file>MainWindow.qml</file>
-        <file>RequestWindow.qml</file>
-        <file>CameraCheckerWindow.qml</file>
-    </qresource>
-</RCC>

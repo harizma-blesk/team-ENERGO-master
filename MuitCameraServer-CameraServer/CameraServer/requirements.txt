@@ -1,6 +1,0 @@
-PyQt5
-SQLAlchemy
-opencv-python
-ultralytics
-configparser
-requests
