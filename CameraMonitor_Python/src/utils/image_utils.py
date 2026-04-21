@@ -201,7 +201,7 @@ class ImageConverter:
                     cv2.rectangle(result, (x1, y1), (x2, y2), color, thickness)
 
                     # Добавляем текст с классом и уверенностью
-                    label = ".2f"
+                    label = f"{class_name}: {confidence:.2f}"
                     (text_width, text_height), baseline = cv2.getTextSize(
                         label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
 

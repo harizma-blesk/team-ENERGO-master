@@ -4,6 +4,7 @@
 
 import logging
 import time
+import cv2
 from typing import Optional, Dict, Any
 
 from PyQt6.QtWidgets import (
@@ -45,12 +46,14 @@ class VideoDisplayThread(QThread):
                     continue
 
                 detection_data = {}
-                if self.show_detections and self.detector.is_loaded():
+                if self.show_detections and self.detector.is_loaded:
                     try:
-                        results = self.detector.detect_people(frame)
+                        detections, stats = self.detector.detect_people(frame)
+                        frame = self._draw_detections(frame, detections)
                         detection_data = {
-                            'detections': results,
-                            'count': len(results) if results else 0,
+                            'detections': detections,
+                            'count': stats.person_count,
+                            'stats': stats,
                             'timestamp': time.time()
                         }
                     except Exception as e:
@@ -67,6 +70,27 @@ class VideoDisplayThread(QThread):
             except Exception as e:
                 logging.error(f"Video display thread error: {e}")
                 self.msleep(100)
+
+    def _draw_detections(self, frame, detections):
+        """Нарисовать детекции прямо на кадре, чтобы они точно были видны в UI."""
+        result = frame.copy()
+
+        for detection in detections:
+            x1, y1, x2, y2 = map(int, detection.bbox)
+            label = f"{detection.class_name}: {detection.confidence:.2f}"
+
+            cv2.rectangle(result, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            cv2.putText(
+                result,
+                label,
+                (x1, max(y1 - 10, 20)),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                (0, 255, 0),
+                2
+            )
+
+        return result
 
     def stop(self):
         """Остановка потока"""

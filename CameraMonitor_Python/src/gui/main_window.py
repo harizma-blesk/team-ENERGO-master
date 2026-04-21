@@ -40,7 +40,7 @@ class StatusUpdateThread(QThread):
             try:
                 # Обновляем статус камеры
                 if self.camera_manager.is_camera_active():
-                    camera_status = f"Камера активна ({self.camera_manager.get_stats()['current_current_fps']:.1f} FPS)"
+                    camera_status = f"Камера активна ({self.camera_manager.get_stats()['current_fps']:.1f} FPS)"
                 else:
                     camera_status = "Камера не активна"
 
@@ -249,10 +249,14 @@ class MainWindow(QMainWindow):
     def start_camera(self):
         """Запуск камеры"""
         try:
-            self.camera_manager.start
-            self.status_label.setText("Камера запущена")
-            self.status_label.setStyleSheet("font-weight: bold; color: green;")
-            self.logger.info("Camera started from GUI")
+            if self.camera_manager.start():
+                self.status_label.setText("Камера запущена")
+                self.status_label.setStyleSheet("font-weight: bold; color: green;")
+                self.logger.info("Camera started from GUI")
+            else:
+                self.status_label.setText("Не удалось запустить камеру")
+                self.status_label.setStyleSheet("font-weight: bold; color: red;")
+                self.logger.error("Camera failed to start from GUI")
         except Exception as e:
             self.status_label.setText(f"Ошибка запуска камеры: {e}")
             self.status_label.setStyleSheet("font-weight: bold; color: red;")
@@ -261,7 +265,7 @@ class MainWindow(QMainWindow):
     def stop_camera(self):
         """Остановка камеры"""
         try:
-            self.camera_manager.stop
+            self.camera_manager.stop()
             self.status_label.setText("Камера остановлена")
             self.status_label.setStyleSheet("font-weight: bold; color: orange;")
             self.logger.info("Camera stopped from GUI")
