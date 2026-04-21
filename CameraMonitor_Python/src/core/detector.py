@@ -182,7 +182,9 @@ class PersonDetector:
                 return False
 
             logger.info(f"Loading YOLO model: {self.model_path}")
-            self.model = YOLO(self.model_path)
+            # Для ONNX модели явно указываем задачу, чтобы ultralytics
+            # не гадал по файлу и не показывал предупреждение.
+            self.model = YOLO(self.model_path, task="detect")
 
             # Настраиваем параметры
             self.model.conf = self.conf_threshold
