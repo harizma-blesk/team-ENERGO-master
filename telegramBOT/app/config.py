@@ -30,9 +30,15 @@ class Settings(BaseSettings):
     # Telegram
     telegram_bot_token: SecretStr = Field(default="", alias="TELEGRAM_BOT_TOKEN")
     
+    # PHP API
+    php_base_url: str = Field(default="http://localhost:3333", alias="PHP_BASE_URL")
+    php_api_paths: dict[str, str] = Field(default_factory=dict, alias="PHP_API_PATHS")
+    php_auth_scheme: str = Field(default="none", alias="PHP_AUTH_SCHEME")
+    php_auth_secret: str = Field(default="", alias="PHP_AUTH_SECRET")
+    php_api_key_header: str = Field(default="X-API-Key", alias="PHP_API_KEY_HEADER")
+    
     # Java API
     java_base_url: str = Field(default="http://localhost:8080", alias="JAVA_BASE_URL")
-    java_api_paths: dict[str, str] = Field(default_factory=dict, alias="JAVA_API_PATHS")
     java_auth_scheme: str = Field(default="none", alias="JAVA_AUTH_SCHEME")
     java_auth_secret: str = Field(default="", alias="JAVA_AUTH_SECRET")
     java_api_key_header: str = Field(default="X-API-Key", alias="JAVA_API_KEY_HEADER")
@@ -85,14 +91,31 @@ class Settings(BaseSettings):
                 except ValueError:
                     data["ADMIN_TELEGRAM_IDS"] = []
         
-        # Parse JAVA_API_PATHS from JSON string if needed
-        if "JAVA_API_PATHS" in data and isinstance(data["JAVA_API_PATHS"], str):
+        # Parse PHP_API_PATHS from JSON string if needed
+        if "PHP_API_PATHS" in data and isinstance(data["PHP_API_PATHS"], str):
             try:
-                data["JAVA_API_PATHS"] = json.loads(data["JAVA_API_PATHS"])
+                data["PHP_API_PATHS"] = json.loads(data["PHP_API_PATHS"])
             except (json.JSONDecodeError, TypeError):
-                data["JAVA_API_PATHS"] = {}
+                data["PHP_API_PATHS"] = {}
         
         super().__init__(**data)
+
+    def get_location(self, location_id: str) -> LocationOption | None:
+        """Get location by ID from locations_list."""
+        for loc in self.locations_list:
+            if loc.id == location_id:
+                return loc
+        return None
+
+    @property
+    def bridge_path(self) -> str:
+        """Get the bridge API path."""
+        return self.php_api_paths.get("bridge", "/api/bridge")
+
+    @property
+    def cancel_path(self) -> str:
+        """Get the cancel API path."""
+        return self.php_api_paths.get("cancel", "/api/cancel")
 
 
 def get_settings() -> Settings:

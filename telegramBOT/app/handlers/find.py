@@ -19,7 +19,7 @@ from app.keyboards.menus import (
 )
 from app.models import FindRoomQuery
 from app.services.formatter import extract_free_rooms, format_room_details, format_search_result
-from app.services.java_client import JavaClient, JavaClientError
+from app.services.php_client import PhpClient, PhpClientError
 from app.storage.user_storage import UserStorage
 
 
@@ -103,7 +103,7 @@ async def cmd_cancel(message: Message, state: FSMContext) -> None:
 async def cmd_cancel_booking(
     message: Message,
     user_storage: UserStorage,
-    java_client: JavaClient,
+    php_client: PhpClient,
 ) -> None:
     user_id = message.from_user.id if message.from_user else 0
     if not user_id:
@@ -124,20 +124,20 @@ async def cmd_cancel_booking(
         "end_time": booking.get("available_until", ""),
     }
 
-    java_error = None
+    php_error = None
     try:
-        result = await java_client.cancel_booking(cancel_payload)
-        logger.info("cancel_booking java response: %s", result)
-    except JavaClientError as exc:
-        logger.error("cancel_booking java error: %s", exc)
-        java_error = str(exc)
+        result = await php_client.cancel_booking(cancel_payload)
+        logger.info("cancel_booking php response: %s", result)
+    except PhpClientError as exc:
+        logger.error("cancel_booking php error: %s", exc)
+        php_error = str(exc)
     except Exception as exc:
         logger.exception("cancel_booking unexpected error")
-        java_error = str(exc)
+        php_error = str(exc)
 
     await user_storage.cancel_booking(user_id)
 
-    if java_error:
+    if php_error:
         await message.answer(
             "✅ Локальная бронь отменена, но ошибка при удалении из БД.\n"
             f"Детали: {java_error}"
@@ -170,7 +170,7 @@ async def callback_find_location(
     callback: CallbackQuery,
     state: FSMContext,
     settings: Settings,
-    java_client: JavaClient,
+    php_client: PhpClient,
     user_storage: UserStorage,
 ) -> None:
     location_id = callback.data.split(":", maxsplit=1)[1]
@@ -191,7 +191,7 @@ async def callback_find_location(
     await _execute_search(
         message=callback.message,
         state=state,
-        java_client=java_client,
+        php_client=php_client,
         user_storage=user_storage,
         user_id=callback.from_user.id,
     )
@@ -201,7 +201,7 @@ async def callback_find_location(
 async def callback_find_floor(
     callback: CallbackQuery,
     state: FSMContext,
-    java_client: JavaClient,
+    php_client: PhpClient,
     user_storage: UserStorage,
 ) -> None:
     floor_raw = callback.data.split(":", maxsplit=1)[1]
@@ -219,7 +219,7 @@ async def callback_find_floor(
         await _execute_search(
             message=callback.message,
             state=state,
-            java_client=java_client,
+            php_client=php_client,
             user_storage=user_storage,
             user_id=callback.from_user.id,
         )
@@ -229,7 +229,7 @@ async def _execute_search(
     *,
     message: Message,
     state: FSMContext,
-    java_client: JavaClient,
+    php_client: PhpClient,
     user_storage: UserStorage,
     user_id: int,
 ) -> None:
@@ -262,10 +262,10 @@ async def _execute_search(
     )
 
     try:
-        logger.info("_execute_search: calling java_client.bridge(POST)...")
-        response = await java_client.bridge(payload=payload)
+        logger.info("_execute_search: calling php_client.bridge(POST)...")
+        response = await php_client.bridge(payload=payload)
         logger.info("_execute_search: response=%s", response)
-    except JavaClientError as exc:
+    except PhpClientError as exc:
         await state.clear()
         logger.error(
             "find_request_failed: status_code=%s details=%s",
@@ -330,7 +330,7 @@ async def _execute_search(
 async def callback_cancel_booking(
     callback: CallbackQuery,
     user_storage: UserStorage,
-    java_client: JavaClient,
+    php_client: PhpClient,
 ) -> None:
     user_id = callback.from_user.id
     booking = await user_storage.get_active_booking(user_id)
@@ -350,16 +350,16 @@ async def callback_cancel_booking(
         "end_time": booking.get("available_until", ""),
     }
 
-    java_error = None
+    php_error = None
     try:
-        result = await java_client.cancel_booking(cancel_payload)
-        logger.info("cancel_booking java response: %s", result)
-    except JavaClientError as exc:
-        logger.error("cancel_booking java error: %s", exc)
-        java_error = str(exc)
+        result = await php_client.cancel_booking(cancel_payload)
+        logger.info("cancel_booking php response: %s", result)
+    except PhpClientError as exc:
+        logger.error("cancel_booking php error: %s", exc)
+        php_error = str(exc)
     except Exception as exc:
         logger.exception("cancel_booking unexpected error")
-        java_error = str(exc)
+        php_error = str(exc)
 
     # Always clear local booking
     await user_storage.cancel_booking(user_id)
@@ -368,7 +368,7 @@ async def callback_cancel_booking(
         if java_error:
             await callback.message.answer(
                 "✅ Локальная бронь отменена, но ошибка при удалении из БД.\n"
-                f"Детали: {java_error}\n"
+                f"Детали: {php_error}\n"
                 "Используйте /find для новой записи."
             )
         else:

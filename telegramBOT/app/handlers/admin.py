@@ -12,7 +12,7 @@ from aiogram.filters.command import CommandObject
 from aiogram.types import Message
 
 from app.config import Settings
-from app.services.java_client import JavaClient, JavaClientError
+from app.services.php_client import PhpClient, PhpClientError
 
 
 logger = logging.getLogger(__name__)
@@ -36,28 +36,28 @@ def _tail(path: str, limit: int) -> list[str]:
 
 
 @router.message(Command("status"))
-async def cmd_status(message: Message, settings: Settings, java_client: JavaClient) -> None:
+async def cmd_status(message: Message, settings: Settings, php_client: PhpClient) -> None:
     user_id = message.from_user.id if message.from_user else 0
     if not _is_admin(user_id, settings):
         await _reject_non_admin(message)
         return
 
     try:
-        result = await java_client.bridge()
-    except JavaClientError as exc:
+        result = await php_client.bridge()
+    except PhpClientError as exc:
         logger.error(
             "admin_status_failed",
             extra={"status_code": exc.status_code, "details": exc.details},
         )
         await message.answer(
-            "Java API недоступен.\n"
+            "PHP API недоступен.\n"
             f"Ошибка: {escape(str(exc))}\n"
             f"HTTP: {exc.status_code or 'n/a'}"
         )
         return
 
     body = escape(json.dumps(result, ensure_ascii=False, indent=2))
-    await message.answer(f"Java API доступен.\n<code>{body[:3500]}</code>")
+    await message.answer(f"PHP API доступен.\n<code>{body[:3500]}</code>")
 
 
 @router.message(Command("logs"))
