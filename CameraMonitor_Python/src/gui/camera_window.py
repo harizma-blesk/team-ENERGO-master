@@ -20,6 +20,7 @@ from src.core.config import Config
 from src.core.camera import CameraManager
 from src.core.detector import PersonDetector
 from src.core.database import DatabaseManager
+from src.core.laravel_sync import LaravelSyncClient
 from src.utils.image_utils import ImageConverter, DetectionVisualizer
 
 
@@ -158,6 +159,7 @@ class CameraWindow(QWidget):
         self.camera_manager = camera_manager
         self.detector = detector
         self.db_manager = db_manager
+        self.laravel_sync = LaravelSyncClient(config)
 
         self.init_ui()
         self.start_video_thread()
@@ -206,6 +208,8 @@ class CameraWindow(QWidget):
         pixmap = QPixmap.fromImage(qimage)
         self.video_label.setPixmap(pixmap)
         self.overlay.set_detection_data(detection_data)
+        if detection_data:
+            self.laravel_sync.sync_detection(detection_data.get('count', 0))
 
     def start_camera(self):
         """Запуск камеры"""

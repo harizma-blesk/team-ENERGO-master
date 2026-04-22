@@ -38,17 +38,17 @@ class ScheduleController extends Controller
      * GET /api/schedule/auditories
      */
     public function auditories(): JsonResponse
-    {
-        $list = $this->scheduleService->getAllAuditories()->map(fn($a) => [
-            'id'       => $a->id,
-            'name'     => $a->name,
-            'number'   => $a->number,
-            'corpus'   => $a->corpus,
-            'category' => $a->category,
-        ]);
+{
+    $list = $this->scheduleService->getAllAuditories()->map(fn($a) => [
+        'id'       => $a->id,
+        'name'     => $a->name,
+        'number'   => $a->number,
+        'corpus'   => $a->corpus,
+        'category' => $a->category,
+    ])->values()->toArray(); // Добавляем values()->toArray() для чистого массива
 
-        return response()->json($list);
-    }
+    return response()->json($list);
+}
 
     /**
      * GET /api/schedule/journal
@@ -106,5 +106,27 @@ class ScheduleController extends Controller
             'duration'   => $j->duration,
             'timeStatus' => $j->timeStatus,
         ];
+    }
+    /**
+     * POST /api/schedule/cameras/detection
+     * Принимает данные от Python скрипта (камеры)
+     */
+    public function updateCameraDetection(Request $request): JsonResponse
+    {
+        // Логируем входящие данные, чтобы увидеть их в storage/logs/laravel.log
+        Log::info('Данные от камеры получены:', $request->all());
+
+        $auditoryName = $request->input('auditory_name');
+        $status = $request->input('occupancy_status'); // 1 - занято, 0 - свободно
+
+        // Вызываем метод сервиса для обновления статуса в базе
+        // Убедитесь, что в вашем ScheduleService есть метод updateAuditoryStatus
+        $updated = $this->scheduleService->updateAuditoryStatus($auditoryName, $status);
+
+        if ($updated) {
+            return response()->json(['status' => 'success', 'message' => 'Статус обновлен']);
+        }
+
+        return response()->json(['status' => 'error', 'message' => 'Кабинет не найден'], 404);
     }
 }

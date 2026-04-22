@@ -78,17 +78,25 @@ class BotBridgeService
             ->exists();
 
         if (!$busy) {
-            $freeRooms[] = [
+            $isOccupied = (bool)$aud->is_occupied;
+
+            $roomData = [
                 'name'          => $aud->name,
                 'location_name' => $corpus,
                 'location_id'   => $locationId,
                 'floor'         => $aud->floor,
                 'capacity'      => $aud->capacity,
                 'schedule_free' => true,
-                'camera_free'   => null,
-                'camera_status' => 'нет данных (камера недоступна)',
+                'camera_free'   => !$isOccupied,
+                'camera_status' => 'online',
                 'auditory_id'   => $aud->id,
             ];
+
+            if ($isOccupied) {
+                $alternatives[] = $roomData;
+            } else {
+                $freeRooms[] = $roomData;
+            }
         }
     }
 

@@ -11,65 +11,45 @@ from typing import Optional
 
 
 def setup_logger(name: str, log_dir: str = "logs", level: str = "INFO",
-                log_format: Optional[str] = None, max_bytes: int = 10485760,
-                backup_count: int = 5) -> logging.Logger:
-    """
-    Настройка логирования для модуля
-
-    Args:
-        name: Имя логгера (обычно __name__)
-        log_dir: Директория для логов
-        level: Уровень логирования (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-        log_format: Формат логов (если None, используется стандартный)
-        max_bytes: Максимальный размер файла лога (10MB по умолчанию)
-        backup_count: Количество резервных копий (5 по умолчанию)
-
-    Returns:
-        Настроенный логгер
-    """
+                 log_format: Optional[str] = None, max_bytes: int = 10485760,
+                 backup_count: int = 5) -> logging.Logger:
+    
     if log_format is None:
         log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
-    # Создаем директорию для логов
-    log_path = Path(log_dir)
-    log_path.mkdir(parents=True, exist_ok=True)
-
-    # Получаем или создаем логгер
+    # Получаем логгер
     logger = logging.getLogger(name)
-
-    # Если логгер уже настроен, возвращаем его
-    if logger.handlers:
-        return logger
 
     # Устанавливаем уровень
     numeric_level = getattr(logging, level.upper(), logging.INFO)
     logger.setLevel(numeric_level)
 
-    # Создаем форматтер
+    # ВАЖНО: Если LoggerManager уже инициализирован, 
+    # мы просто возвращаем логгер, не добавляя ему лишних обработчиков.
+    # Он сам передаст сообщения "наверх" к корневому логгеру.
+    if get_logger_manager() is not None:
+        return logger
+
+    # Если логгер уже имеет обработчики, ничего не добавляем
+    if logger.handlers:
+        return logger
+
+    # --- Код ниже сработает только если LoggerManager еще не создан (fallback) ---
+
+    log_path = Path(log_dir)
+    log_path.mkdir(parents=True, exist_ok=True)
     formatter = logging.Formatter(log_format)
 
-    # File handler с ротацией
-    log_file = log_path / f"{name.replace('.', '_')}.log"
-    file_handler = logging.handlers.RotatingFileHandler(
-        log_file,
-        maxBytes=max_bytes,
-        backupCount=backup_count,
-        encoding='utf-8'
-    )
-    file_handler.setLevel(numeric_level)
-    file_handler.setFormatter(formatter)
-
-    # Console handler
+    # Console handler (добавляем только в режиме fallback)
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(numeric_level)
     console_handler.setFormatter(formatter)
-
-    # Добавляем handlers к логгеру
-    logger.addHandler(file_handler)
     logger.addHandler(console_handler)
 
-    return logger
+    # Настраиваем проброс логов выше по иерархии
+    logger.propagate = True
 
+    return logger
 
 class LoggerManager:
     """

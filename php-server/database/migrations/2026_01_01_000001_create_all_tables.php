@@ -11,6 +11,7 @@ return new class extends Migration {
             $table->integer('number')->nullable();
             $table->string('corpus')->nullable();
             $table->string('category')->nullable();
+            $table->tinyInteger('is_occupied')->default(0)->after('category');
             $table->integer('capacity')->nullable();
             $table->integer('has_projector')->default(0);
             $table->integer('floor')->nullable();

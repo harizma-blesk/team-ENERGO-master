@@ -181,6 +181,39 @@ class Config:
         """Целевой FPS для обновления видео"""
         return self.parser.getint("GUI", "fps_target", fallback=30)
 
+    # Laravel section
+    @property
+    def laravel_sync_enabled(self) -> bool:
+        return self.parser.getboolean('Laravel', 'enabled', fallback=False)
+
+    @property
+    def laravel_base_url(self) -> str:
+        return self.parser.get('Laravel', 'baseUrl', fallback='')
+
+    @property
+    def laravel_auditory_name(self) -> str:
+        return self.parser.get('Laravel', 'auditoryName', fallback='')
+
+    @property
+    def laravel_camera_name(self) -> str:
+        return self.parser.get('Laravel', 'cameraName', fallback='')
+
+    @property
+    def laravel_camera_address(self) -> str:
+        return self.parser.get('Laravel', 'cameraAddress', fallback='')
+
+    @property
+    def laravel_camera_port(self) -> int:
+        return self.parser.getint('Laravel', 'cameraPort', fallback=0)
+
+    @property
+    def laravel_sync_interval_seconds(self) -> float:
+        return self.parser.getfloat('Laravel', 'syncIntervalSeconds', fallback=30.0)
+
+    @property
+    def laravel_timeout_seconds(self) -> float:
+        return self.parser.getfloat('Laravel', 'timeoutSeconds', fallback=5.0)
+
     def reload(self):
         """Перезагрузить конфигурацию из файла"""
         try:

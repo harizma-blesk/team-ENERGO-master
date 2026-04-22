@@ -240,4 +240,27 @@ class ScheduleService
             default       => 0,
         };
     }
+    /**
+ * Обновить статус занятости аудитории (вызывается из ScheduleController)
+ */
+public function updateAuditoryStatus(string $name, int $status): bool
+{
+    // Обязательно используем trim, чтобы избежать проблем с лишними пробелами из Python
+    $roomName = trim($name);
+
+    $auditory = Auditory::where('name', $roomName)->first();
+
+    if ($auditory) {
+        // Здесь мы обновляем поле is_occupied. 
+        // Убедитесь, что это поле есть в вашей таблице 'auditories'!
+        $auditory->is_occupied = ($status === 1); 
+        $saved = $auditory->save();
+
+        Log::info("Status updated for {$roomName}: " . ($status ? 'Occupied' : 'Free'));
+        return $saved;
+    }
+
+    Log::warning("ScheduleService: Auditory '{$roomName}' not found for status update.");
+    return false;
+}
 }

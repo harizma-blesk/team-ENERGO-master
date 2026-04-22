@@ -211,10 +211,12 @@ class RequestWindow(QWidget):
         self.update_timer.start(30000)  # Каждые 30 секунд
 
     def load_room_list(self):
-        """Загрузка списка кабинетов из базы данных"""
         try:
-            # Получаем список кабинетов из БД
-            rooms = self.db_manager.get_all_rooms()
+            import requests
+            base_url = self.config.parser.get('Laravel', 'baseUrl', fallback='http://127.0.0.1:3333/api')
+            response = requests.get(f"{base_url}/schedule/auditories", timeout=5)
+            response.raise_for_status()
+            rooms = response.json()
 
             self.room_combo.clear()
             self.room_combo.addItem("Выберите кабинет...", "")
@@ -228,7 +230,6 @@ class RequestWindow(QWidget):
 
         except Exception as e:
             self.logger.error(f"Failed to load rooms: {e}")
-            QMessageBox.warning(self, "Ошибка", f"Не удалось загрузить список кабинетов:\n{e}")
 
     def perform_search(self):
         """Выполнение поиска"""
