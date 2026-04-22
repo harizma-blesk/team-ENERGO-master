@@ -73,7 +73,8 @@ class MainWindow(QMainWindow):
                  db_manager: DatabaseManager,
                  camera_manager: CameraManager,
                  detector: PersonDetector,
-                 network_manager: NetworkManager):
+                 network_manager: NetworkManager,
+                 cameras: list = None):
         super().__init__()
 
         self.config = config
@@ -81,6 +82,8 @@ class MainWindow(QMainWindow):
         self.camera_manager = camera_manager
         self.detector = detector
         self.network_manager = network_manager
+        self.cameras = cameras or [] 
+        
 
         self.logger = logging.getLogger(__name__)
 
@@ -115,10 +118,15 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.tab_widget)
 
         # Вкладка камеры
-        self.camera_window = CameraWindow(
-            self.config, self.camera_manager, self.detector, self.db_manager
-        )
-        self.tab_widget.addTab(self.camera_window, "📹 Камера")
+        self.camera_windows = []
+        for cam in self.cameras:
+            cam_window = CameraWindow(
+                self.config, cam['manager'], self.detector, self.db_manager,
+                auditory_name=cam['auditory_name'],
+                camera_name=cam['camera_name'],
+            )
+            self.camera_windows.append(cam_window)
+            self.tab_widget.addTab(cam_window, f"📹 {cam['camera_name']}")
 
         # Вкладка запросов
         self.request_window = RequestWindow(

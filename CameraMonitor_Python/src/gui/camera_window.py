@@ -153,16 +153,20 @@ class CameraWindow(QWidget):
     """Главное окно камеры с видео"""
 
     def __init__(self, config: Config, camera_manager: CameraManager,
-                 detector: PersonDetector, db_manager: DatabaseManager):
-        super().__init__()
-        self.config = config
-        self.camera_manager = camera_manager
-        self.detector = detector
-        self.db_manager = db_manager
-        self.laravel_sync = LaravelSyncClient(config)
+                detector: PersonDetector, db_manager: DatabaseManager,
+                auditory_name: str = '', camera_name: str = '',
+                laravel_client: LaravelSyncClient = None):
+            super().__init__()
+            self.config = config
+            self.camera_manager = camera_manager
+            self.detector = detector
+            self.db_manager = db_manager
+            self.auditory_name = auditory_name
+            self.camera_name = camera_name
+            self.laravel_sync = laravel_client
 
-        self.init_ui()
-        self.start_video_thread()
+            self.init_ui()
+            self.start_video_thread()
 
     def init_ui(self):
         """Инициализация интерфейса"""
@@ -204,11 +208,10 @@ class CameraWindow(QWidget):
         self.video_thread.start()
 
     def on_frame_ready(self, qimage: QImage, detection_data: dict):
-        """Обработка готового кадра"""
         pixmap = QPixmap.fromImage(qimage)
         self.video_label.setPixmap(pixmap)
         self.overlay.set_detection_data(detection_data)
-        if detection_data:
+        if detection_data and self.laravel_sync:
             self.laravel_sync.sync_detection(detection_data.get('count', 0))
 
     def start_camera(self):

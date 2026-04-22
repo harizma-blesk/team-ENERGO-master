@@ -21,7 +21,7 @@ from src.core.camera import CameraManager, CameraConfig
 from src.core.detector import PersonDetector
 from src.core.network import NetworkManager
 from src.utils.logger import get_logger_manager, get_logger
-
+from src.core.laravel_sync import LaravelSyncClient
 from src.gui.main_window import MainWindow
 
 
@@ -52,18 +52,36 @@ def initialize_components(config: Config) -> tuple:
 
     try:
         # Инициализация базы данных
-        logger.info("Initializing database...")
+        logger.info("Initializing database manager...")
         db_manager = DatabaseManager(config.db_path)
-        db_manager.initialize_database()
 
-        # Настройка менеджера камеры
         logger.info("Initializing camera manager...")
-        camera_config = CameraConfig(
-            rtsp_url=config.camera_rtsp_url,
-            camera_index=config.camera_index,
-            fps_target=config.fps_target
-        )
-        camera_manager = CameraManager(camera_config)
+        cameras = []
+        for section in ['Camera1', 'Camera2']:
+            if not config.parser.has_section(section):
+                continue
+            rtsp = config.parser.get(section, 'rtspUrl', fallback='')
+            auditory_name = config.parser.get(section, 'auditoryName', fallback='')
+            camera_name = config.parser.get(section, 'cameraName', fallback='')
+            cam_cfg = CameraConfig(rtsp_url=rtsp or None, fps_target=config.fps_target)
+
+            laravel_client = LaravelSyncClient(
+                base_url=config.parser.get('Laravel', 'baseUrl', fallback=''),
+                auditory_name=auditory_name,
+                camera_name=camera_name,
+                camera_address=rtsp,
+                sync_interval_seconds=config.parser.getint('Laravel', 'syncIntervalSeconds', fallback=2),
+                timeout_seconds=config.parser.getint('Laravel', 'timeoutSeconds', fallback=3),
+                enabled=config.parser.getboolean('Laravel', 'enabled', fallback=True),
+            )
+
+            cameras.append({
+                'manager': CameraManager(cam_cfg),
+                'auditory_name': auditory_name,
+                'camera_name': camera_name,
+                'laravel_client': laravel_client,
+            })
+        camera_manager = cameras[0]['manager']  # для обратной совместимости
 
         # Инициализация детектора
         logger.info("Initializing person detector...")
@@ -75,7 +93,7 @@ def initialize_components(config: Config) -> tuple:
         network_manager = NetworkManager(config)
 
         logger.info("All components initialized successfully")
-        return db_manager, camera_manager, detector, network_manager
+        return db_manager, camera_manager, detector, network_manager, cameras
 
     except Exception as e:
         logger.error(f"Failed to initialize components: {e}")
@@ -103,7 +121,7 @@ def main():
         app = setup_application()
 
         # Инициализация компонентов
-        db_manager, camera_manager, detector, network_manager = initialize_components(config)
+        db_manager, camera_manager, detector, network_manager, cameras = initialize_components(config)
 
         # Создание главного окна
         logger.info("Creating main window...")
@@ -112,7 +130,8 @@ def main():
             db_manager=db_manager,
             camera_manager=camera_manager,
             detector=detector,
-            network_manager=network_manager
+            network_manager=network_manager,
+            cameras=cameras
         )
 
         # Запуск сетевых компонентов

@@ -18,15 +18,18 @@ logger = get_logger(__name__)
 class LaravelSyncClient:
     """Отправляет текущее состояние вебки в Laravel API."""
 
-    def __init__(self, config: Config):
-        self.enabled = config.laravel_sync_enabled
-        self.base_url = config.laravel_base_url.rstrip("/")
-        self.auditory_name = config.laravel_auditory_name
-        self.camera_name = config.laravel_camera_name
-        self.camera_address = config.laravel_camera_address
-        self.camera_port = config.laravel_camera_port
-        self.sync_interval_seconds = config.laravel_sync_interval_seconds
-        self.timeout_seconds = config.laravel_timeout_seconds
+    def __init__(self, base_url: str, auditory_name: str, camera_name: str,
+             camera_address: str = '', camera_port: int = 0,
+             sync_interval_seconds: int = 2, timeout_seconds: int = 3,
+             enabled: bool = True):
+        self.enabled = enabled
+        self.base_url = base_url.rstrip("/")
+        self.auditory_name = auditory_name
+        self.camera_name = camera_name
+        self.camera_address = camera_address
+        self.camera_port = camera_port
+        self.sync_interval_seconds = sync_interval_seconds
+        self.timeout_seconds = timeout_seconds
         self._last_sync_at = 0.0
         self._last_occupancy: Optional[int] = None
 

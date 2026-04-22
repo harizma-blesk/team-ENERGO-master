@@ -5,13 +5,15 @@
 # Путь к SQLite БД файлу
 path=camera_monitor.db
 
-[Camera]
-# RTSP URL для подключения к камере
-startRtcp=rtsp://user:password@192.168.1.100
-# Постфикс потока
-endRtcp=/ch01_sub.264
-# Индекс локальной камеры (если RTSP не используется)
-cameraIndex=0
+[Camera1]
+rtspUrl=rtsp://login:pass@192.168.1.10:554/stream
+auditoryName=А-101
+cameraName=Camera_A101
+
+[Camera2]
+rtspUrl=rtsp://login:pass@192.168.1.11:554/stream
+auditoryName=Б-205
+cameraName=Camera_B205
 
 [UDP]
 # IP сервера Python backend
