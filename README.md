@@ -151,7 +151,7 @@ docker compose up -d
 В том же терминале запустите миграции:
 
 ```bash
-npx prisma migrate dev
+npx prisma migrate deploy
 npm run prisma:seed
 ```
 
