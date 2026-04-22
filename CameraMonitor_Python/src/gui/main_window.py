@@ -124,6 +124,7 @@ class MainWindow(QMainWindow):
                 self.config, cam['manager'], self.detector, self.db_manager,
                 auditory_name=cam['auditory_name'],
                 camera_name=cam['camera_name'],
+                 laravel_client=cam['laravel_client'], 
             )
             self.camera_windows.append(cam_window)
             self.tab_widget.addTab(cam_window, f"📹 {cam['camera_name']}")

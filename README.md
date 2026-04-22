@@ -64,144 +64,386 @@ Telegram-бот на `aiogram`, который помогает искать с�
 - Desktop / embedded: C++, Qt, PlatformIO, ESP32
 - Data: PostgreSQL и локальные SQLite/runtime storage
 
-## Быстрый старт
+## Полный пошаговый запуск проекта
 
-Из-за того, что это монорепозиторий из нескольких независимых сервисов, обычно запускают не всё сразу, а нужный модуль.
+Это монорепозиторий из четырёх независимых сервисов. Запуск можно организовать по-разному:
+- **Минимальный** - только MainPage (веб-приложение)
+- **Полный** - все сервисы (требует больше ресурсов)
 
-### 1. Основной веб-модуль `MainPage`
+Каждый сервис можно запускать отдельно в своём терминале.
 
-Требования:
+---
 
-- Node.js 20+
-- Docker / Docker Compose
-- PostgreSQL через compose
+## Предварительные требования (для всех)
 
-Запуск:
+Установите на машину:
+
+1. **Node.js 20+** - https://nodejs.org/
+2. **Python 3.11+** - https://www.python.org/
+3. **Docker + Docker Compose** - https://www.docker.com/
+4. **PHP 8.3+** + **Composer** - https://www.php.net/, https://getcomposer.org/
+5. **Git** - для клонирования репозитория
+
+Проверьте установку:
 
 ```bash
-cd MainPage
+node --version
+python --version
+docker --version
+php --version
+composer --version
+```
+
+---
+
+## Шаг 0: Подготовка (для всех сервисов)
+
+Перейдите в корень репозитория:
+
+```bash
+cd team-ENERGO-master
+```
+
+---
+
+## Шаг 1: MainPage (веб-приложение) - обязательный
+
+Это основной сервис. Работает на `Node.js + React + Fastify`.
+
+### 1.1 Инициализация backend
+
+Откройте **первый терминал** и выполните:
+
+```bash
+cd MainPage/backend
+
+# Установить зависимости
 npm install
-copy frontend\.env.example frontend\.env
-cd backend
-docker compose up -d
-npx prisma migrate dev
-npm run prisma:seed
-npm run dev
+
+# Создать .env файл
+copy .env.example .env
+# Если .env.example не существует, создайте .env вручную с содержимым:
 ```
 
-Отдельно frontend:
-
-```bash
-cd MainPage
-npm run dev:frontend
-```
-
-Отдельно backend:
-
-```bash
-cd MainPage
-npm run dev:backend
-```
-
-Полезные адреса:
-
-- frontend: `http://localhost:5173`
-- backend API: `http://localhost:4000/api/v1`
-
-Для `MainPage/backend/.env` шаблон в репозитории сейчас не найден, поэтому файл нужно создать вручную. Минимально понадобятся:
+**Для первого запуска** отредактируйте `MainPage/backend/.env`:
 
 ```env
-DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/DB_NAME
-JWT_ACCESS_SECRET=change-me-to-a-long-secret
+DATABASE_URL=postgresql://energo_user:energo_password@localhost:5432/energo_db
+JWT_ACCESS_SECRET=your-super-secret-jwt-key-change-this-in-production
 PORT=4000
 ALLOWED_ORIGINS=http://localhost:5173
 SCHEDULE_PROVIDER_MODE=http
 SCHEDULE_PROVIDER_HTTP_URL=http://localhost:8080/api/schedule/subjects
 ```
 
-Дополнительно backend поддерживает:
+### 1.2 Запуск Docker для PostgreSQL
 
-- `GEMINI_API_KEY`
-- `GEMINI_MODEL`
-- `ROOM_FINDER_PHP_URL`
-- `ROOM_FINDER_API_KEY`
-- TCP/PUSH-настройки для расписания
+Из папки `MainPage/backend` запустите:
 
-### 2. Laravel сервис `php-server`
+```bash
+docker compose up -d
+```
 
-Требования:
+Это поднимет PostgreSQL на `localhost:5432`. Дождитесь, пока БД будет готова (～20 секунд).
 
-- PHP 8.3+
-- Composer
-- Node.js
+### 1.3 Инициализация БД
 
-Запуск:
+В том же терминале запустите миграции:
+
+```bash
+npx prisma migrate dev
+npm run prisma:seed
+```
+
+### 1.4 Запуск backend
+
+```bash
+npm run dev
+```
+
+Backend будет доступен на `http://localhost:4000/api/v1`
+
+Должны увидеть примерно:
+```
+Server running on port 4000
+```
+
+### 1.5 Инициализация frontend
+
+Откройте **второй терминал** и выполните:
+
+```bash
+cd MainPage/frontend
+
+npm install
+
+# Создать .env если нужно
+copy .env.example .env
+```
+
+### 1.6 Запуск frontend
+
+```bash
+npm run dev
+```
+
+Frontend будет доступен на `http://localhost:5173`
+
+### ✅ MainPage готов!
+
+- Откройте в браузере: `http://localhost:5173`
+- API backend: `http://localhost:4000/api/v1`
+
+---
+
+## Шаг 2: PHP Laravel сервис - опционально (для интеграций)
+
+Этот сервис работает как мост для расписания и нужен, если используются интеграции или Telegram-бот.
+
+Откройте **третий терминал**:
 
 ```bash
 cd php-server
-cp .env.example .env
+
+# Копируем .env
+copy .env.example .env
+# или создайте вручную с минимальным содержимым
+
+# Установить PHP зависимости
 composer install
+
+# Установить Node зависимости
 npm install
+
+# Генерировать приложение ключ
 php artisan key:generate
+
+# Запустить миграции БД
 php artisan migrate
+
+# Запустить dev-сервер
 composer run dev
 ```
 
-Основные API-маршруты:
+PHP-сервер будет доступен на `http://localhost:8000`
 
-- `POST /api/bridge`
-- `GET /api/bridge`
-- `POST /api/bridge/cancel`
-- `POST /api/schedule/upload`
-- `GET /api/schedule/auditories`
-- `GET /api/schedule/journal`
-- `GET /api/schedule/subjects`
-- `POST /api/schedule/subjects/push`
+Основные эндпоинты:
+- `GET /api/schedule/subjects` - получить расписание
+- `GET /api/schedule/auditories` - список аудиторий
+- `POST /api/bridge` - мост для интеграций
 
-### 3. Telegram-бот `telegramBOT`
+---
 
-Требования:
+## Шаг 3: Telegram-бот - опционально (для поиска аудиторий)
 
-- Python 3.11+
-
-Запуск:
+Откройте **четвёртый терминал**:
 
 ```bash
 cd telegramBOT
+
+# Создать виртуальное окружение
 python -m venv .venv
+
+# Активировать окружение (Windows)
 .venv\Scripts\activate
+
+# или на Mac/Linux:
+# source .venv/bin/activate
+
+# Установить зависимости
 pip install -r requirements.txt
-python main.py
+
+# Создать .env файл
+# Минимально нужны:
 ```
 
-В текущем состоянии репозитория `.env.example` для бота не закоммичен, поэтому `.env` нужно создать вручную. Минимально нужны:
+**Отредактируйте `.env` в папке `telegramBOT`:**
 
 ```env
-TELEGRAM_BOT_TOKEN=your_bot_token
-JAVA_BASE_URL=http://localhost:8080
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
+JAVA_BASE_URL=http://localhost:8000
 LOG_LEVEL=INFO
 STORAGE_PATH=data/users.json
 LOG_PATH=logs/bot.log
 ```
 
-Полный пример переменных и форматов можно взять из [telegramBOT/README.md](</c:/team-ENERGO-master/telegramBOT/README.md>).
+Получить `TELEGRAM_BOT_TOKEN`:
+1. Напишите `@BotFather` в Telegram
+2. Команда `/newbot` и следуйте инструкциям
+3. Скопируйте полученный токен
 
-### 4. Camera server `MuitCameraServer-CameraServer/CameraServer`
-
-Требования:
-
-- Python 3.10+ желательно
-- OpenCV / PyQt5 / ultralytics
-
-Запуск:
+**Запуск бота:**
 
 ```bash
-cd MuitCameraServer-CameraServer/CameraServer
+python main.py
+```
+
+Бот будет слушать входящие сообщения в Telegram. Доступные команды:
+- `/find` - поиск свободной аудитории
+- `/status` - статус аудиторий
+- `/logs` - логи
+
+---
+
+## Шаг 4: Camera Server - опционально (для мониторинга камер)
+
+Откройте **пятый терминал**:
+
+```bash
+cd CameraMonitor_Python
+
+# Создать виртуальное окружение
+python -m venv .venv
+
+# Активировать (Windows)
+.venv\Scripts\activate
+
+# или Mac/Linux:
+# source .venv/bin/activate
+
+# Установить зависимости
 pip install -r requirements.txt
-copy settings.ini.example settings.ini
-python quick_check.py
-python run_tests.py
-python Server/main.py
+
+# Создать config
+copy config/settings.ini.example config/settings.ini
+```
+
+**Отредактируйте `CameraMonitor_Python/config/settings.ini`** с параметрами камер и сервера.
+
+**Тестирование (рекомендуется сначала):**
+
+```bash
+python validate.py
+python -m pytest tests/
+```
+
+**Запуск сервера камер:**
+
+```bash
+python run.py
+```
+
+Camera server будет слушать входящие подключения для обработки видеопотока.
+
+---
+
+## Проверка: все ли запущено?
+
+| Сервис | URL | Статус |
+|--------|-----|--------|
+| Frontend | `http://localhost:5173` | ✅ открыть в браузер |
+| Backend API | `http://localhost:4000/api/v1` | ✅ /health или /docs |
+| PHP/Laravel | `http://localhost:8000` | ✅ /api/schedule/subjects |
+| Telegram Bot | Telegram App | ✅ отправить `/find` |
+| Camera Server | `localhost:8888` (если включен) | ✅ проверить логи |
+| PostgreSQL | `localhost:5432` | ✅ docker ps |
+
+---
+
+## Остановка всего
+
+Когда захотите остановить все сервисы:
+
+**В каждом терминале нажмите:** `Ctrl+C`
+
+**Чтобы остановить Docker PostgreSQL:**
+
+```bash
+cd MainPage/backend
+docker compose down
+```
+
+---
+
+## Быстрый запуск (если уже всё настроено)
+
+После первоначальной настройки, чтобы запустить всё снова:
+
+```bash
+# Терминал 1: Backend
+cd MainPage/backend
+npm run dev
+
+# Терминал 2: Frontend
+cd MainPage/frontend
+npm run dev
+
+# Терминал 3 (опционально): PHP
+cd php-server
+composer run dev
+
+# Терминал 4 (опционально): Telegram Bot
+cd telegramBOT
+.venv\Scripts\activate
+python main.py
+
+# Терминал 5 (опционально): Camera Server
+cd CameraMonitor_Python
+.venv\Scripts\activate
+python run.py
+```
+
+---
+
+## Решение проблем
+
+### ❌ Docker не запускается
+```bash
+docker compose up -d
+# Проверить логи:
+docker compose logs -f
+```
+
+### ❌ Node.js ошибка версии
+```bash
+node --version
+# Должна быть 20+. Если нет, переустановите Node.js
+```
+
+### ❌ Python: модули не найдены
+```bash
+.venv\Scripts\activate
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+### ❌ Prisma ошибка
+```bash
+cd MainPage/backend
+npx prisma migrate reset
+npm run prisma:seed
+```
+
+### ❌ Порты занято
+Если ошибка "Address already in use":
+- Измените PORT в `.env`
+- Или завершите процесс: `netstat -ano | findstr :4000` (Windows)
+
+---
+
+## Архитектура сервисов
+
+```
+┌─────────────────────────────────────────────────────┐
+│         Frontend (React + Vite)                      │
+│         http://localhost:5173                        │
+└──────────────────┬──────────────────────────────────┘
+                   │
+┌──────────────────▼──────────────────────────────────┐
+│      Backend (Fastify + Prisma)                     │
+│      http://localhost:4000/api/v1                   │
+│   ├─ Аутентификация                                 │
+│   ├─ Тесты и результаты                             │
+│   ├─ AI-активности                                  │
+│   └─ Поиск аудиторий                                │
+└──────────────────┬──────────────────────────────────┘
+                   │
+    ┌──────────────┼──────────────┬─────────────┐
+    │              │              │             │
+┌───▼───┐   ┌─────▼──────┐   ┌──▼──────┐   ┌──▼──────┐
+│PostgreSQL│   │ PHP Bridge │   │Telegram Bot│  │Camera  │
+│         │   │ :8000      │   │ Server  │  │Server  │
+└─────────┘   └────────────┘   └─────────┘  └────────┘
 ```
 
 ## Архитектура на уровне модулей

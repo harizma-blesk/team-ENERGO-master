@@ -38,6 +38,7 @@ class LaravelSyncClient:
 
     def sync_detection(self, people_count: int):
         if not self.can_sync():
+            logger.warning(f"Sync disabled or missing config: enabled={self.enabled}, base_url={self.base_url}, auditory_name={repr(self.auditory_name)}")
             return
 
         occupancy_status = 1 if people_count > 0 else 0
@@ -46,6 +47,7 @@ class LaravelSyncClient:
             self._last_occupancy == occupancy_status
             and now - self._last_sync_at < self.sync_interval_seconds
         ):
+            logger.debug(f"Skipping sync (no change): occupancy={occupancy_status}")
             return
 
         payload = {
@@ -59,13 +61,13 @@ class LaravelSyncClient:
         }
 
         try:
-            response = requests.post(
-                f"{self.base_url}/schedule/cameras/detection",
+            response = requests.post(f"{self.base_url}/schedule/cameras/detection",
                 json=payload,
                 timeout=self.timeout_seconds,
             )
             response.raise_for_status()
             self._last_sync_at = now
             self._last_occupancy = occupancy_status
+            logger.info(f"Laravel sync OK: status={response.status_code}, response={response.text}")
         except Exception as e:
             logger.warning(f"Laravel sync failed: {e}")
