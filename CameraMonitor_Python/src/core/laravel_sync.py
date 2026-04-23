@@ -61,7 +61,7 @@ class LaravelSyncClient:
         }
 
         try:
-            response = requests.post(f"{self.base_url}/schedule/cameras/detection",
+            response = requests.post(f"{self.base_url}/api/schedule/cameras/detection",
                 json=payload,
                 timeout=self.timeout_seconds,
             )
