@@ -15,7 +15,7 @@ class FindRoomQuery(BaseModel):
     need_projector: bool | None = None
     requested_by: int
 
-    def to_java_payload(self) -> dict[str, Any]:
+    def to_php_payload(self) -> dict[str, Any]:
         filters: dict[str, Any] = {}
         if self.min_capacity is not None:
             filters["min_capacity"] = self.min_capacity

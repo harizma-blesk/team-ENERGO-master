@@ -32,7 +32,7 @@ import {
 import dayjs from 'dayjs';
 import { findFreeRooms, loadAuditories } from '../api/rooms-api';
 
-/* ── Locations hardcoded (match the Java .env LOCATIONS_LIST) ── */
+
 const LOCATIONS = [
   { id: 'corp_a', name: 'Корпус A', floors: [1, 2, 3, 4] },
   { id: 'corp_b', name: 'Корпус B', floors: [1, 2, 3] }
@@ -319,7 +319,7 @@ const RoomsPage = () => {
       >
         {auditoriesQuery.isLoading && <Spin />}
         {auditoriesQuery.error && (
-          <Alert type="warning" showIcon message="Не удалось загрузить список аудиторий (Java сервер недоступен)" />
+          <Alert type="warning" showIcon message="Не удалось загрузить список аудиторий (PHP сервер недоступен)" />
         )}
         {auditoriesQuery.data && auditoriesQuery.data.length > 0 ? (
           <List

@@ -30,8 +30,8 @@ WeightsPath=models/test.pt
 ConfThreshold=0.7
 
 [TCP_Servers]
-IP_Java=192.168.1.100
-PORT_Java=3333
+IP_PHP=192.168.1.100
+PORT_PHP=3333
 
 [Logging]
 level=DEBUG
@@ -55,8 +55,8 @@ level=DEBUG
         self.assertEqual(config.udp_listen_port, 5000)
         self.assertEqual(config.yolo_weights_path, "models/test.pt")
         self.assertEqual(config.yolo_conf_threshold, 0.7)
-        self.assertEqual(config.java_server_ip, "192.168.1.100")
-        self.assertEqual(config.java_server_port, 3333)
+        self.assertEqual(config.PHP_server_ip, "192.168.1.100")
+        self.assertEqual(config.PHP_server_port, 3333)
         self.assertEqual(config.log_level, "DEBUG")
 
     def test_config_defaults(self):

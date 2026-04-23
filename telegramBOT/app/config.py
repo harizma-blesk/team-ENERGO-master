@@ -37,11 +37,11 @@ class Settings(BaseSettings):
     php_auth_secret: str = Field(default="", alias="PHP_AUTH_SECRET")
     php_api_key_header: str = Field(default="X-API-Key", alias="PHP_API_KEY_HEADER")
     
-    # Java API
-    java_base_url: str = Field(default="http://localhost:8080", alias="JAVA_BASE_URL")
-    java_auth_scheme: str = Field(default="none", alias="JAVA_AUTH_SCHEME")
-    java_auth_secret: str = Field(default="", alias="JAVA_AUTH_SECRET")
-    java_api_key_header: str = Field(default="X-API-Key", alias="JAVA_API_KEY_HEADER")
+    # PHP API
+    php_base_url: str = Field(default="http://localhost:3333", alias="PHP_BASE_URL")
+    php_auth_scheme: str = Field(default="none", alias="PHP_AUTH_SCHEME")
+    php_auth_secret: str = Field(default="", alias="PHP_AUTH_SECRET")
+    php_api_key_header: str = Field(default="X-API-Key", alias="PHP_API_KEY_HEADER")
     
     # Request settings
     request_timeout_seconds: int = Field(default=8, alias="REQUEST_TIMEOUT_SECONDS")

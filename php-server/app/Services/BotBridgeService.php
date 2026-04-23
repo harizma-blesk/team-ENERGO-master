@@ -139,7 +139,7 @@ class BotBridgeService
 
         Log::info("Found auditory: id={$auditory->id}, name={$auditory->name}");
 
-        // Delete all journal entries for this auditory (same behavior as original Java)
+        
         $deleted = AuditoryJournal::where('aud_id', $auditory->id)->delete();
 
         if ($deleted > 0) {

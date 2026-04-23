@@ -115,7 +115,7 @@ async def cmd_cancel_booking(
         await message.answer("У вас нет активной брони.")
         return
 
-    # Call Java API to delete from DB
+    # Call PHP API to delete from DB
     cancel_payload = {
         "telegram_user_id": user_id,
         "auditory_name": booking.get("room_info", ""),
@@ -140,7 +140,7 @@ async def cmd_cancel_booking(
     if php_error:
         await message.answer(
             "✅ Локальная бронь отменена, но ошибка при удалении из БД.\n"
-            f"Детали: {java_error}"
+            f"Детали: {php_error}"
         )
     else:
         await message.answer("✅ Бронь успешно отменена.")
@@ -254,7 +254,7 @@ async def _execute_search(
         )
         return
 
-    payload = query.to_java_payload()
+    payload = query.to_php_payload()
     logger.info("_execute_search: payload=%s", payload)
     await message.answer(
         f"🔍 Ищу свободный кабинет на сегодня ({today.isoformat()}) "
@@ -281,7 +281,7 @@ async def _execute_search(
         await state.clear()
         logger.exception("find_request_unexpected_error")
         await message.answer(
-            "Неожиданная ошибка при запросе к Java API.\n"
+            "Неожиданная ошибка при запросе к PHP API.\n"
             f"Детали: {exc}"
         )
         return
@@ -341,7 +341,7 @@ async def callback_cancel_booking(
             await callback.message.answer("У вас нет активной брони.")
         return
 
-    # Call Java API to delete from DB
+    # Call PHP API to delete from DB
     cancel_payload = {
         "telegram_user_id": user_id,
         "auditory_name": booking.get("room_info", ""),
@@ -365,7 +365,7 @@ async def callback_cancel_booking(
     await user_storage.cancel_booking(user_id)
 
     if callback.message:
-        if java_error:
+        if php_error:
             await callback.message.answer(
                 "✅ Локальная бронь отменена, но ошибка при удалении из БД.\n"
                 f"Детали: {php_error}\n"

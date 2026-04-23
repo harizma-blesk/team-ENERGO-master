@@ -189,7 +189,7 @@ const fetchViaHttp = async (query) => {
     }
   }
 
-  // 3) Spring fallback for this Java server: GET /api/schedule/subjects
+  
   try {
     const payload = await fetchJsonHttp(subjectsUrl, {
       method: 'GET',

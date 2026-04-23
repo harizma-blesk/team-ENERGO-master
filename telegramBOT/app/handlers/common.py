@@ -39,7 +39,7 @@ async def cmd_help(message: Message) -> None:
         "/mybook - посмотреть текущую бронь\n"
         "/cancelbook - отменить бронь\n"
         "/setdefault [location_id] - сохранить локацию по умолчанию\n"
-        "/status - health Java API (только админы)\n"
+        "/status - health PHP API (только админы)\n"
         "/logs [N] - последние N строк логов (только админы)\n"
         "/cancel - отменить текущий диалог\n\n"
         "<b>Как работает</b>\n"

@@ -37,8 +37,8 @@ class NetworkConfig:
             udp_listen_port=config.udp_listen_port,
             udp_send_port=config.udp_send_port,
             udp_send_host=getattr(config, 'udp_send_host', '127.0.0.1'),
-            tcp_host=config.java_server_ip,
-            tcp_port=config.java_server_port,
+            tcp_host=config.PHP_server_ip,
+            tcp_port=config.PHP_server_port,
             timeout=getattr(config, 'tcp_timeout', 5.0),
             reconnect_delay=getattr(config, 'tcp_reconnect_delay', 2.0)
         )
@@ -207,7 +207,7 @@ class UDPClient:
 
 
 class TCPClient:
-    """TCP клиент для подключения к Java/ESP серверам"""
+    """TCP клиент для подключения к PHP/ESP серверам"""
 
     def __init__(self, config: NetworkConfig):
         self.config = config

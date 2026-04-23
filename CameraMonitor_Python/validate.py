@@ -83,7 +83,7 @@ def validate_config():
         logger.info(f"  Camera RTSP: {config.camera_rtsp_url}")
         logger.info(f"  YOLO Model: {config.yolo_weights_path}")
         logger.info(f"  UDP Listen Port: {config.udp_listen_port}")
-        logger.info(f"  TCP Server: {config.java_server_ip}:{config.java_server_port}")
+        logger.info(f"  TCP Server: {config.PHP_server_ip}:{config.java_server_port}")
         
         return True
     except Exception as e:

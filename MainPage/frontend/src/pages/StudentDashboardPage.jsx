@@ -33,7 +33,7 @@ const StudentDashboardPage = () => {
       <Card>
         <Typography.Title level={3}>Дашборд студента</Typography.Title>
         <Typography.Text type="secondary">
-          Предметы берутся из удалённого Java-сервера расписания. Выберите предмет и запустите тест.
+          Предметы берутся из удалённого PHP-сервера расписания. Выберите предмет и запустите тест.
         </Typography.Text>
       </Card>
 

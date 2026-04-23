@@ -12,7 +12,7 @@ const roomsRoutes = async (fastify) => {
       const data = await roomFinderHealth();
       return reply.send(data);
     } catch (err) {
-      return reply.status(502).send({ error: 'Java server unavailable', details: err.message });
+      return reply.status(502).send({ error: 'PHP server unavailable', details: err.message });
     }
   });
 

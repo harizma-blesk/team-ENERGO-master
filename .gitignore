@@ -83,37 +83,7 @@ php-server/public/build/
 php-server/bootstrap/cache/*.php
 php-server/.phpunit.result.cache
 
-# Java / JVM
-target/
-*.class
-*.jar
 
-# C / C++ / Qt build outputs
-*.obj
-*.o
-*.pdb
-*.ilk
-*.idb
-*.lib
-*.exp
-*.a
-*.so
-cmake-build-*/
-CMakeFiles/
-CMakeCache.txt
-compile_commands.json
-Makefile
-.qmake.stash
-moc_*.cpp
-qrc_*.cpp
-ui_*.h
-debug/
-release/
-x64/
-x86/
-
-# Docker overrides
-docker-compose.override.yml
 
 # Project-specific local files
 MainPage/backend/.env

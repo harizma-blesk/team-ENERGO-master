@@ -2,7 +2,7 @@
 
 const scheduleCompatRoutes = async (fastify) => {
   // Compatibility endpoint used by older schedule providers
-  // Returns array of items in a simple Java-friendly format: { id, subName, teacherName }
+  
   fastify.get('/subjects', async (request) => {
     const q = request.query;
     const query = {

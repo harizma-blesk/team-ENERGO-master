@@ -47,8 +47,8 @@ const persistSubjects = async (items, config) => {
     const idPartRaw = row.idSub ?? row.id;
     const idPart = idPartRaw !== undefined && idPartRaw !== null ? String(idPartRaw) : toSafeCode(subjectName);
 
-    const subjectCode = `java_subject_${idPart}`;
-    const scheduleId = `java_push_${groupCode}_${idPart}`;
+    const subjectCode = `php_subject_${idPart}`;
+    const scheduleId = `php_push_${groupCode}_${idPart}`;
 
     const startsAt = new Date(now + index * 60_000);
     const endsAt = new Date(startsAt.getTime() + 90 * 60_000);
@@ -71,12 +71,12 @@ const persistSubjects = async (items, config) => {
       where: { externalSubjectCode: subjectCode },
       update: {
         name: subjectName,
-        description: `Imported from Java push TCP (${new Date().toISOString()})`
+        description: `Imported from PHP push TCP (${new Date().toISOString()})`
       },
       create: {
         externalSubjectCode: subjectCode,
         name: subjectName,
-        description: 'Imported from Java push TCP'
+        description: 'Imported from PHP push TCP'
       }
     });
 
@@ -133,14 +133,14 @@ export const startSubjectPushTcpServer = (logger, config) => {
             received: items.length,
             imported
           },
-          'Java subject push processed'
+          'PHP subject push processed'
         );
 
         socket.write(JSON.stringify({ status: 'ok', imported }) + '\n');
         socket.end();
       } catch (error) {
         const message = error instanceof Error ? error.message : 'unknown error';
-        logger.error({ err: error }, 'Failed to process Java push payload');
+        logger.error({ err: error }, 'Failed to process PHP push payload');
         socket.write(JSON.stringify({ status: 'error', message }) + '\n');
         socket.end();
       }
@@ -156,7 +156,7 @@ export const startSubjectPushTcpServer = (logger, config) => {
   });
 
   server.listen(config.port, '0.0.0.0', () => {
-    logger.info(`Java push TCP listener started on 0.0.0.0:${config.port}`);
+    logger.info(`PHP push TCP listener started on 0.0.0.0:${config.port}`);
   });
 
   return server;

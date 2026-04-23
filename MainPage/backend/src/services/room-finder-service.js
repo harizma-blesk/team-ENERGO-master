@@ -19,7 +19,7 @@ const headers = () => {
   return h;
 };
 
-async function javaFetch(path, init) {
+async function PHPFetch(path, init) {
   const url = `${baseUrl()}${path}`;
 
   console.log(`[room-finder] → ${init?.method ?? 'GET'} ${url}`);
@@ -33,7 +33,7 @@ async function javaFetch(path, init) {
     });
   } catch (err) {
     console.error(`[room-finder] Network error reaching ${url}:`, err.message);
-    throw new Error(`Cannot reach Java server at ${url}: ${err.message}`);
+    throw new Error(`Cannot reach PHP server at ${url}: ${err.message}`);
   }
 
   console.log(`[room-finder] ← ${res.status} ${res.statusText}`);
@@ -41,21 +41,21 @@ async function javaFetch(path, init) {
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     console.error(`[room-finder] Error body:`, text);
-    throw new Error(`Java API ${res.status}: ${text}`);
+    throw new Error(`PHP API ${res.status}: ${text}`);
   }
   return res.json();
 }
 
 /* ───── Public API ───── */
 
-/** Health-check of Java server */
+/** Health-check of PHP server */
 export async function roomFinderHealth() {
-  return javaFetch('/api/bridge');
+  return PHPFetch('/api/bridge');
 }
 
 /** POST /api/bridge  — find free rooms via YOLO + schedule */
 export async function findFreeRooms(req) {
-  return javaFetch('/api/bridge', {
+  return PHPFetch('/api/bridge', {
     method: 'POST',
     body: JSON.stringify(req)
   });
@@ -63,11 +63,11 @@ export async function findFreeRooms(req) {
 
 /** GET /api/schedule/auditories — list of all rooms */
 export async function getAuditories() {
-  return javaFetch('/api/schedule/auditories');
+  return PHPFetch('/api/schedule/auditories');
 }
 
 /** GET /api/schedule/journal — occupancy journal */
 export async function getJournal(audId) {
   const path = audId != null ? `/api/schedule/journal/${audId}` : '/api/schedule/journal';
-  return javaFetch(path);
+  return PHPFetch(path);
 }

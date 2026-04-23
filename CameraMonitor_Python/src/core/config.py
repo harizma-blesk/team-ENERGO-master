@@ -99,14 +99,14 @@ class Config:
 
     # TCP_Servers section
     @property
-    def java_server_ip(self) -> str:
-        """IP адрес Java сервера"""
-        return self.parser.get("TCP_Servers", "IP_Java", fallback="192.168.1.50")
+    def PHP_server_ip(self) -> str:
+        """IP адрес PHP сервера"""
+        return self.parser.get("TCP_Servers", "IP_PHP", fallback="192.168.1.50")
 
     @property
-    def java_server_port(self) -> int:
-        """Порт Java сервера"""
-        return self.parser.getint("TCP_Servers", "PORT_Java", fallback=2222)
+    def PHP_server_port(self) -> int:
+        """Порт PHP сервера"""
+        return self.parser.getint("TCP_Servers", "PORT_PHP", fallback=3333)
 
     @property
     def esp_device_ip(self) -> str:
