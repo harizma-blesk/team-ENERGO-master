@@ -64,6 +64,10 @@ venv\Scripts\activate  # Windows
 # Установить зависимости
 pip install -r requirements.txt
 
+#Установить модели YOLO
+pip install huggingface_hub
+python -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='Ultralytics/assets', filename='yolov8n.pt', local_dir='models')"
+
 # Запустить приложение
 python run.py
 ```
