@@ -22,6 +22,9 @@ const envSchema = z.object({
   ROOM_FINDER_API_KEY: z.string().optional()
 });
 
+// Мы просто убираем аннотации типов (типа :z.infer<...>)
 export const env = envSchema.parse(process.env);
 
-export const allowedOrigins = env.ALLOWED_ORIGINS.split(',').map((x) => x.trim()).filter(Boolean);
+export const allowedOrigins = env.ALLOWED_ORIGINS.split(',')
+  .map((x) => x.trim())
+  .filter(Boolean);
