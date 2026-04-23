@@ -22,9 +22,10 @@ class ScheduleController extends Controller
      * Body: { fileName, sheet, rows: string[][] }
      */
     public function upload(Request $request): JsonResponse
-    {
-        Log::info('POST /api/schedule/upload', ['file' => $request->input('fileName')]);
+{
+    Log::info('POST /api/schedule/upload', ['file' => $request->input('fileName')]);
 
+    try {
         $saveResult = $this->scheduleService->saveSchedule($request->all());
 
         return response()->json([
@@ -32,7 +33,21 @@ class ScheduleController extends Controller
             'message' => 'Расписание успешно обработано',
             ...$saveResult,
         ], 201);
+
+    } catch (\Throwable $e) {
+        Log::error('Upload error: ' . $e->getMessage(), [
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+        ]);
+
+        return response()->json([
+            'status'  => 'error',
+            'message' => $e->getMessage(),
+            'file'    => $e->getFile(),
+            'line'    => $e->getLine(),
+        ], 500);
     }
+}
 
     /**
      * GET /api/schedule/auditories
@@ -53,6 +68,20 @@ class ScheduleController extends Controller
     /**
      * GET /api/schedule/journal
      */
+
+    public function cameras(): JsonResponse
+    {
+        $list = \App\Models\Camera::with('auditory')->get()->map(fn($c) => [
+            'id'           => $c->id,
+            'name'         => $c->name,
+            'ip'           => $c->ip,
+            'port'         => $c->port,
+            'rtsp_url'     => $c->rtsp_url,
+            'auditory_name' => $c->auditory?->name,
+        ]);
+
+        return response()->json($list);
+    }
     public function journal(): JsonResponse
     {
         $list = $this->scheduleService->getAllJournal()->map(fn($j) => $this->mapJournal($j));

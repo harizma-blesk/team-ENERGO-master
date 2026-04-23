@@ -171,14 +171,29 @@ async function sendToJava() {
   }
 }
 
+
 function buildPayload() {
   if (!currentSheet) return null;
   const fileName = currentFileName || fileInput.files[0]?.name || 'upload.xlsx';
-  return {
-    fileName,
-    sheet: currentSheet.name,
-    rows: currentSheet.rows,
-  };
+  
+  // Камеры: выдёргиваем строки где есть IP
+  const [header = [], ...body] = currentSheet.rows;
+  const ipIdx = header.findIndex(h => 
+    String(h).trim().toLowerCase().includes('камера_ip'));
+  
+  const cameras = ipIdx >= 0
+    ? body
+        .filter(row => String(row[ipIdx] || '').trim())
+        .map(row => ({
+          ip:       String(row[ipIdx] || '').trim(),
+          port:     row[ipIdx + 1] ? Number(row[ipIdx + 1]) : 554,
+          login:    String(row[ipIdx + 2] || '').trim() || null,
+          password: String(row[ipIdx + 3] || '').trim() || null,
+          name:     String(row[ipIdx + 4] || '').trim() || null,
+        }))
+    : [];
+
+  return { fileName, sheet: currentSheet.name, rows: currentSheet.rows, cameras };
 }
 
 function updatePayloadPreview() {

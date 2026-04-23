@@ -47,7 +47,6 @@ def setup_application() -> QApplication:
 
 
 def initialize_components(config: Config) -> tuple:
-    """Инициализация всех компонентов приложения"""
     logger = get_logger(__name__)
 
     try:
@@ -56,17 +55,47 @@ def initialize_components(config: Config) -> tuple:
         db_manager = DatabaseManager(config.db_path)
 
         logger.info("Initializing camera manager...")
+        
+        # Получаем камеры из Laravel API вместо settings.ini
+        import requests
+        base_url = config.parser.get('Laravel', 'baseUrl', fallback='http://localhost:3333')
+        
+        try:
+                response = requests.get(f"{base_url}/api/cameras", timeout=5)
+                print(f"API status: {response.status_code}")
+                print(f"API response: {response.text}")
+                api_cameras = response.json() if response.ok else []
+                logger.info(f"Loaded {len(api_cameras)} cameras from Laravel API")
+        except Exception as e:
+                print(f"API request failed: {e}")
+                logger.warning(f"Could not load cameras from API: {e}, falling back to settings.ini")
+                api_cameras = []
+
+        # Если API не вернул камеры — fallback на settings.ini
+        if not api_cameras:
+            for section in ['Camera1', 'Camera2', 'Camera3', 'Camera4', 'Camera5']:
+                if not config.parser.has_section(section):
+                    continue
+                api_cameras.append({
+                    'rtsp_url':     config.parser.get(section, 'rtspUrl',      fallback=''),
+                    'auditory_name': config.parser.get(section, 'auditoryName', fallback=''),
+                    'name':         config.parser.get(section, 'cameraName',   fallback=''),
+                })
+
         cameras = []
-        for section in ['Camera1', 'Camera2']:
-            if not config.parser.has_section(section):
+        for cam_data in api_cameras:
+            rtsp         = cam_data.get('rtsp_url', '')
+            auditory_name = cam_data.get('auditory_name') or cam_data.get('auditoryName', '')
+            camera_name  = cam_data.get('name') or cam_data.get('cameraName', '')
+
+            if not rtsp:
+                logger.warning(f"Camera '{camera_name}' skipped: no rtsp_url")
                 continue
-            rtsp = config.parser.get(section, 'rtspUrl', fallback='')
-            auditory_name = config.parser.get(section, 'auditoryName', fallback='')
-            camera_name = config.parser.get(section, 'cameraName', fallback='')
-            cam_cfg = CameraConfig(rtsp_url=rtsp or None, fps_target=config.fps_target)
+
+            cam_cfg = CameraConfig(rtsp_url=rtsp, fps_target=config.fps_target)
 
             laravel_client = LaravelSyncClient(
-                base_url=config.parser.get('Laravel', 'baseUrl', fallback=''),
+                base_url=base_url,
                 auditory_name=auditory_name,
                 camera_name=camera_name,
                 camera_address=rtsp,
@@ -76,12 +105,16 @@ def initialize_components(config: Config) -> tuple:
             )
 
             cameras.append({
-                'manager': CameraManager(cam_cfg),
+                'manager':       CameraManager(cam_cfg),
                 'auditory_name': auditory_name,
-                'camera_name': camera_name,
+                'camera_name':   camera_name,
                 'laravel_client': laravel_client,
             })
-        camera_manager = cameras[0]['manager']  # для обратной совместимости
+
+        if not cameras:
+            raise RuntimeError("No cameras found. Add cameras via Excel upload or settings.ini")
+
+        camera_manager = cameras[0]['manager']
 
         # Инициализация детектора
         logger.info("Initializing person detector...")

@@ -20,3 +20,4 @@ Route::post('/schedule/subjects/push',   [ScheduleController::class, 'pushSubjec
 Route::post('/schedule/cameras/detection', [ScheduleController::class, 'updateCameraDetection']);
 // Добавляем этот маршрут специально для Python-скрипта
 Route::get('/auditories', [ScheduleController::class, 'auditories']);
+Route::get('/cameras', [ScheduleController::class, 'cameras']);

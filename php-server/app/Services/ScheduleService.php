@@ -17,130 +17,166 @@ class ScheduleService
      * @param array $dto ['fileName' => string, 'sheet' => string, 'rows' => string[][]]
      */
     public function saveSchedule(array $dto): array
-    {
-        $fileName = $dto['fileName'] ?? '';
-        $rows     = $dto['rows'] ?? [];
+{
+    $fileName = $dto['fileName'] ?? '';
+    $rows     = $dto['rows'] ?? [];
 
-        Log::info("ScheduleService: saving schedule from {$fileName}");
+    Log::info("ScheduleService: saving schedule from {$fileName}");
 
-        $auditoriesAdded   = 0;
-        $journalAdded      = 0;
-        $rowsSkipped       = 0;
+    $auditoriesAdded = 0;
+    $camerasAdded    = 0;
+    $journalAdded    = 0;
+    $rowsSkipped     = 0;
 
-        if (count($rows) < 2) {
-            Log::warning("ScheduleService: no data rows in {$fileName}");
+    if (count($rows) < 2) {
+        Log::warning("ScheduleService: no data rows in {$fileName}");
+    } else {
+        $header = $rows[0];
+
+        $colDay      = $this->findColumn($header, 'день');
+        $colTime     = $this->findColumn($header, 'время');
+        $colSubject  = $this->findColumn($header, 'предмет');
+        $colTeacher  = $this->findColumn($header, 'преподаватель');
+        $colRoom     = $this->findColumn($header, 'кабинет');
+        $colCamIp    = $this->findColumn($header, 'камера_ip');
+        $colCamPort  = $this->findColumn($header, 'камера_порт');
+        $colCamLogin = $this->findColumn($header, 'камера_логин');
+        $colCamPass  = $this->findColumn($header, 'камера_пароль');
+        $colCamName  = $this->findColumn($header, 'камера_название');
+
+        Log::info("Columns: day={$colDay}, time={$colTime}, subject={$colSubject}, teacher={$colTeacher}, room={$colRoom}");
+        Log::info("Camera columns: ip={$colCamIp}, port={$colCamPort}, login={$colCamLogin}, pass={$colCamPass}, name={$colCamName}");
+
+        if ($colDay < 0 || $colTime < 0 || $colRoom < 0) {
+            Log::error('ScheduleService: missing required columns (день/время/кабинет)');
         } else {
-            $header = $rows[0];
+            $cache = Auditory::all()->keyBy('name')->toArray();
 
-            $colDay     = $this->findColumn($header, 'день');
-            $colTime    = $this->findColumn($header, 'время');
-            $colSubject = $this->findColumn($header, 'предмет');
-            $colTeacher = $this->findColumn($header, 'преподаватель');
-            $colRoom    = $this->findColumn($header, 'кабинет');
+            DB::beginTransaction();
+            try {
+                for ($i = 1; $i < count($rows); $i++) {
+                    $row     = $rows[$i];
+                    $dayStr  = $this->safeGet($row, $colDay);
+                    $timeStr = $this->safeGet($row, $colTime);
+                    $roomStr = $this->safeGet($row, $colRoom);
 
-            Log::info("Columns: day={$colDay}, time={$colTime}, subject={$colSubject}, teacher={$colTeacher}, room={$colRoom}");
+                    if (empty(trim((string)$dayStr))) { $rowsSkipped++; continue; }
+                    if (empty(trim((string)$roomStr))) { $rowsSkipped++; continue; }
 
-            if ($colDay < 0 || $colTime < 0 || $colRoom < 0) {
-                Log::error('ScheduleService: missing required columns (день/время/кабинет)');
-            } else {
-                // Cache existing auditories by name
-                $cache = Auditory::all()->keyBy('name')->toArray();
+                    $dayOfWeek = $this->parseDayOfWeek((string)$dayStr);
+                    if ($dayOfWeek === 0) { $rowsSkipped++; continue; }
 
-                DB::beginTransaction();
-                try {
-                    for ($i = 1; $i < count($rows); $i++) {
-                        $row     = $rows[$i];
-                        $dayStr  = $this->safeGet($row, $colDay);
-                        $timeStr = $this->safeGet($row, $colTime);
-                        $roomStr = $this->safeGet($row, $colRoom);
+                    $roomName = trim((string)$roomStr);
+                    $corpus   = $this->extractCorpus($roomName);
 
-                        if (empty(trim((string)$dayStr))) {
-                            $rowsSkipped++;
-                            continue;
-                        }
-                        if (empty(trim((string)$roomStr))) {
-                            $rowsSkipped++;
-                            continue;
-                        }
+                    // ── Аудитория ─────────────────────────────────────────
+                    if (!isset($cache[$roomName])) {
+                        $number   = $this->extractNumber($roomName);
+                        $floor    = $number ? intdiv($number, 100) : null;
+                        $auditory = Auditory::create([
+                            'name'     => $roomName,
+                            'number'   => $number,
+                            'corpus'   => $corpus,
+                            'floor'    => $floor,
+                            'category' => null,
+                        ]);
+                        $cache[$roomName] = $auditory->toArray();
+                        $auditoriesAdded++;
+                        Log::debug("Created auditory: id={$auditory->id}, name={$roomName}");
+                    }
 
-                        $dayOfWeek = $this->parseDayOfWeek((string)$dayStr);
-                        if ($dayOfWeek === 0) {
-                            $rowsSkipped++;
-                            continue;
-                        }
+                    $audId = $cache[$roomName]['id'];
 
-                        $roomName = trim((string)$roomStr);
-                        $corpus   = $this->extractCorpus($roomName);
+                    // ── Камера ────────────────────────────────────────────
+                    if ($colCamIp >= 0) {
+                        $camIp = trim((string)($this->safeGet($row, $colCamIp) ?? ''));
 
-                        if (!isset($cache[$roomName])) {
-                            $number = $this->extractNumber($roomName);
-                            $floor = $number ? intdiv($number, 100) : null;
-                            $auditory = Auditory::create([
-                                'name'     => $roomName,
-                                'number'   => $number,
-                                'corpus'   => $corpus,
-                                'floor'    => $floor,
-                                'category' => null,
-                            ]);
-                            $cache[$roomName] = $auditory->toArray();
-                            $auditoriesAdded++;
-                            Log::debug("Created auditory: id={$auditory->id}, name={$roomName}");
-                        }
+                        if ($camIp !== '') {
+                            $camPort  = $colCamPort  >= 0 ? (int)$this->safeGet($row, $colCamPort)          : 554;
+                            $camLogin = $colCamLogin >= 0 ? trim((string)$this->safeGet($row, $colCamLogin)) : null;
+                            $camPass  = $colCamPass  >= 0 ? trim((string)$this->safeGet($row, $colCamPass))  : null;
+                            $camName  = $colCamName  >= 0 ? trim((string)$this->safeGet($row, $colCamName))  : "Camera_{$roomName}";
 
-                        $audId = $cache[$roomName]['id'];
+                            $rtspUrl = ($camLogin && $camPass)
+                                ? "rtsp://{$camLogin}:{$camPass}@{$camIp}:{$camPort}/stream"
+                                : "rtsp://{$camIp}:{$camPort}/stream";
 
-                        $subjectName = $colSubject >= 0 ? $this->safeGet($row, $colSubject) : null;
-                        $teacherName = $colTeacher >= 0 ? $this->safeGet($row, $colTeacher) : null;
+                            $created = \App\Models\Camera::updateOrCreate(
+                                ['auditory_id' => $audId],
+                                [
+                                    'name'     => $camName ?: "Camera_{$roomName}",
+                                    'ip'       => $camIp,
+                                    'port'     => $camPort ?: 554,
+                                    'login'    => $camLogin ?: null,
+                                    'password' => $camPass  ?: null,
+                                    'rtsp_url' => $rtspUrl,
+                                ]
+                            );
 
-                        if (!empty(trim((string)$subjectName))) {
-                            try {
-                                $this->subjectService->addOrUpdateSubject(
-                                    trim((string)$subjectName),
-                                    $teacherName ? trim((string)$teacherName) : null
-                                );
-                            } catch (\Throwable $e) {
-                                Log::warning("Failed to save subject: {$e->getMessage()}");
+                            if ($created->wasRecentlyCreated) {
+                                $camerasAdded++;
+                                Log::debug("Created camera: {$camName} → {$camIp}:{$camPort}");
+                            } else {
+                                Log::debug("Updated camera: {$camName} → {$camIp}:{$camPort}");
                             }
                         }
+                    }
 
-                        $times = $this->parseTime((string)$timeStr);
-                        if ($times !== null) {
-                            [$startTime, $endTime] = $times;
-                            $duration = $this->minutesBetween($startTime, $endTime);
+                    // ── Предмет ───────────────────────────────────────────
+                    $subjectName = $colSubject >= 0 ? $this->safeGet($row, $colSubject) : null;
+                    $teacherName = $colTeacher >= 0 ? $this->safeGet($row, $colTeacher) : null;
 
-                            AuditoryJournal::create([
-                                'aud_id'     => $audId,
-                                'dayOfWeek'  => $dayOfWeek,
-                                'startTime'  => $startTime,
-                                'endTime'    => $endTime,
-                                'duration'   => $duration,
-                                'timeStatus' => 1,
-                            ]);
-                            $journalAdded++;
-                        } else {
-                            Log::warning("Row {$i}: cannot parse time '{$timeStr}'");
-                            $rowsSkipped++;
+                    if (!empty(trim((string)$subjectName))) {
+                        try {
+                            $this->subjectService->addOrUpdateSubject(
+                                trim((string)$subjectName),
+                                $teacherName ? trim((string)$teacherName) : null
+                            );
+                        } catch (\Throwable $e) {
+                            Log::warning("Failed to save subject: {$e->getMessage()}");
                         }
                     }
-                    DB::commit();
-                } catch (\Throwable $e) {
-                    DB::rollBack();
-                    throw $e;
+
+                    // ── Журнал ────────────────────────────────────────────
+                    $times = $this->parseTime((string)$timeStr);
+                    if ($times !== null) {
+                        [$startTime, $endTime] = $times;
+
+                        AuditoryJournal::create([
+                            'aud_id'     => $audId,
+                            'dayOfWeek'  => $dayOfWeek,
+                            'startTime'  => $startTime,
+                            'endTime'    => $endTime,
+                            'duration'   => $this->minutesBetween($startTime, $endTime),
+                            'timeStatus' => 1,
+                        ]);
+                        $journalAdded++;
+                    } else {
+                        Log::warning("Row {$i}: cannot parse time '{$timeStr}'");
+                        $rowsSkipped++;
+                    }
                 }
+
+                DB::commit();
+            } catch (\Throwable $e) {
+                DB::rollBack();
+                throw $e;
             }
         }
-
-        Log::info("Schedule saved: auditories={$auditoriesAdded}, journal={$journalAdded}, skipped={$rowsSkipped}");
-
-        return [
-            'fileName'           => $fileName,
-            'sheet'              => $dto['sheet'] ?? null,
-            'totalRows'          => max(0, count($rows) - 1),
-            'auditoriesAdded'    => $auditoriesAdded,
-            'journalEntriesAdded'=> $journalAdded,
-            'rowsSkipped'        => $rowsSkipped,
-        ];
     }
+
+    Log::info("Schedule saved: auditories={$auditoriesAdded}, cameras={$camerasAdded}, journal={$journalAdded}, skipped={$rowsSkipped}");
+
+    return [
+        'fileName'            => $fileName,
+        'sheet'               => $dto['sheet'] ?? null,
+        'totalRows'           => max(0, count($rows) - 1),
+        'auditoriesAdded'     => $auditoriesAdded,
+        'camerasAdded'        => $camerasAdded,
+        'journalEntriesAdded' => $journalAdded,
+        'rowsSkipped'         => $rowsSkipped,
+    ];
+}
 
     public function getAllAuditories(): \Illuminate\Database\Eloquent\Collection
     {
@@ -239,6 +275,20 @@ class ScheduleService
             'воскресенье' => 7,
             default       => 0,
         };
+    }
+
+    private function saveCamera(int $auditoryId, array $data): void
+    {
+        \App\Models\Camera::updateOrCreate(
+            ['auditory_id' => $auditoryId],
+            [
+                'name'     => $data['name'],
+                'ip'       => $data['ip'],
+                'port'     => $data['port'],
+                'login'    => $data['login'],
+                'password' => $data['password'],
+            ]
+        );
     }
     /**
  * Обновить статус занятости аудитории (вызывается из ScheduleController)

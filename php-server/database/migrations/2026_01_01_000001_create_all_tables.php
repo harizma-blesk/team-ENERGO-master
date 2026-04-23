@@ -31,11 +31,29 @@ return new class extends Migration {
             $table->string('sub_name')->unique();
             $table->string('teacher_name')->nullable();
         });
+        Schema::create('cameras', function (Blueprint $table) {
+        $table->id();
+        $table->unsignedBigInteger('auditory_id');
+        $table->string('name')->unique();
+        $table->string('ip');
+        $table->integer('port')->default(554);
+        $table->string('login')->nullable();
+        $table->string('password')->nullable();
+        $table->string('rtsp_url')->nullable();
+        $table->timestamps();
+
+        $table->foreign('auditory_id')
+            ->references('id')
+            ->on('auditory')
+            ->onDelete('cascade');
+        });
+        
     }
     public function down(): void
     {
         Schema::dropIfExists('auditory_journal');
         Schema::dropIfExists('auditory');
         Schema::dropIfExists('subjects');
+        Schema::dropIfExists('cameras');
     }
 };
