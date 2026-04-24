@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from email.mime import message
 import logging
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from aiogram import F, Router
 from aiogram.filters import Command
@@ -21,6 +22,7 @@ from app.models import FindRoomQuery
 from app.services.formatter import extract_free_rooms, format_room_details, format_search_result
 from app.services.php_client import PhpClient, PhpClientError
 from app.storage.user_storage import UserStorage
+from app.services import php_client
 
 
 logger = logging.getLogger(__name__)
@@ -289,14 +291,31 @@ async def _execute_search(
     await user_storage.save_last_request(user_id, payload)
     await user_storage.save_last_response(user_id, response)
 
+    await user_storage.save_last_request(user_id, payload)
+    await user_storage.save_last_response(user_id, response)
+
     # Save active booking
     free_rooms = extract_free_rooms(response)
     room_info = None
-    available_from = None
-    available_until = None
     corpus = None
-    if free_rooms:
-        first_room = free_rooms[0]
+
+    # Вычисляем время бронирования
+    now = datetime.now()
+    start_time = now.strftime('%H:%M')
+    end_time = (now + timedelta(minutes=BOOKING_DURATION_MINUTES)).strftime('%H:%M')
+    day_of_week = now.isoweekday()
+
+    free_rooms = extract_free_rooms(response)
+    room_info = None
+    corpus = None
+
+    now = datetime.now()
+    start_time = now.strftime('%H:%M')
+    end_time = (now + timedelta(minutes=BOOKING_DURATION_MINUTES)).strftime('%H:%M')
+    day_of_week = now.isoweekday()
+
+    if free_rooms:                          # ← 4 пробела
+        first_room = free_rooms[0]          # ← 8 пробелов
         room_info = str(
             first_room.get("name")
             or first_room.get("room_name")
@@ -304,40 +323,34 @@ async def _execute_search(
             or first_room.get("number")
             or "Кабинет"
         )
-        available_from = first_room.get("available_from")
-        available_until = first_room.get("available_until")
         corpus = first_room.get("location_name")
 
-    booking_data = {
-        "location_id": data.get("location_id"),
-        "location_name": data.get("location_name"),
-        "floor": data.get("floor"),
-        "date": today.isoformat(),
-        "duration_minutes": BOOKING_DURATION_MINUTES,
-        "room_info": room_info,
-        "available_from": available_from,
-        "available_until": available_until,
-        "corpus": corpus,
-    }
-    await user_storage.save_active_booking(user_id, booking_data)
-    if free_rooms:
-        from datetime import datetime, timedelta
-        now = datetime.now()
-        start_time = now.strftime('%H:%M')
-        end_time = (now + timedelta(minutes=BOOKING_DURATION_MINUTES)).strftime('%H:%M')
-        day_of_week = now.isoweekday()  # 1=пн, 7=вс
+        booking_data = {
+            "location_id":      data.get("location_id"),
+            "location_name":    data.get("location_name"),
+            "floor":            data.get("floor"),
+            "date":             today.isoformat(),
+            "duration_minutes": BOOKING_DURATION_MINUTES,
+            "room_info":        room_info,
+            "available_from":   start_time,
+            "available_until":  end_time,
+            "day_of_week":      day_of_week,
+            "corpus":           corpus,
+        }
+        await user_storage.save_active_booking(user_id, booking_data)
 
         try:
             await php_client._request('POST', '/api/schedule/book', payload={
                 'auditory_name': room_info,
-                'start_time': start_time,
-                'end_time': end_time,
-                'day_of_week': day_of_week,
+                'start_time':    start_time,
+                'end_time':      end_time,
+                'day_of_week':   day_of_week,
             })
             logger.info(f"Booking saved to DB: {room_info} {start_time}-{end_time}")
         except Exception as exc:
             logger.warning(f"Failed to save booking to DB: {exc}")
-    await state.clear()
+
+    await state.clear()                     # ← 4 пробела
 
     text = format_search_result(response)
     await message.answer(text)

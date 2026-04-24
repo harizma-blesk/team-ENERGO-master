@@ -108,59 +108,50 @@ class BotBridgeService
 
     // ─── Cancel booking ───────────────────────────────────────────────────────
 
-    public function cancelBooking(array $request): array
-    {
-        $auditoryName = $request['auditory_name'] ?? '';
-        $corpus       = $request['corpus'] ?? '';
+   public function cancelBooking(array $request): array
+{
+    $auditoryName = $request['auditory_name'] ?? '';
+    $corpus       = $request['corpus'] ?? '';
+    $startTime    = $request['start_time'] ?? '';
+    $endTime      = $request['end_time'] ?? '';
+    $dayOfWeek    = isset($request['day_of_week']) ? (int)$request['day_of_week'] : null;
 
-        Log::info('BotBridgeService: cancelBooking', [
-            'auditory_name' => $auditoryName,
-            'corpus'        => $corpus,
-        ]);
+    Log::info('BotBridgeService: cancelBooking', $request);
 
-        if (empty(trim($auditoryName))) {
-            return ['status' => 'error', 'message' => 'Не указано имя аудитории.', 'deleted_count' => 0];
-        }
-
-        // Try to find auditory by name as-is
-        $auditory = Auditory::where('name', $auditoryName)->first();
-
-        // Try with corpus prefix: "А-301"
-        if (!$auditory && !empty(trim($corpus))) {
-            $fullName = $corpus . '-' . $auditoryName;
-            $auditory = Auditory::where('name', $fullName)->first();
-        }
-
-        if (!$auditory) {
-            Log::warning("cancelBooking: auditory not found: {$auditoryName}");
-            return [
-                'status'        => 'not_found',
-                'message'       => "Аудитория {$auditoryName} не найдена в базе данных.",
-                'deleted_count' => 0,
-            ];
-        }
-
-        Log::info("Found auditory: id={$auditory->id}, name={$auditory->name}");
-
-        
-        $deleted = AuditoryJournal::where('aud_id', $auditory->id)->delete();
-
-        if ($deleted > 0) {
-            Log::info("cancelBooking: deleted {$deleted} record(s) for auditory {$auditory->name}");
-            return [
-                'status'        => 'ok',
-                'message'       => "Бронь аудитории {$auditory->name} успешно отменена.",
-                'deleted_count' => $deleted,
-            ];
-        }
-
-        return [
-            'status'        => 'not_found',
-            'message'       => 'Запись о бронировании не найдена в журнале.',
-            'deleted_count' => 0,
-        ];
+    if (empty(trim($auditoryName))) {
+        return ['status' => 'error', 'message' => 'Не указано имя аудитории.', 'deleted_count' => 0];
     }
 
+    $auditory = Auditory::where('name', $auditoryName)->first();
+    if (!$auditory && !empty(trim($corpus))) {
+        $auditory = Auditory::where('name', $corpus . '-' . $auditoryName)->first();
+    }
+
+    if (!$auditory) {
+        Log::warning("cancelBooking: auditory not found: {$auditoryName}");
+        return ['status' => 'not_found', 'message' => "Аудитория {$auditoryName} не найдена.", 'deleted_count' => 0];
+    }
+
+    // Удаляем только конкретную запись брони по времени
+    $query = AuditoryJournal::where('aud_id', $auditory->id);
+
+    if ($startTime && $endTime && $dayOfWeek) {
+        $query->where('startTime', $startTime)
+              ->where('endTime', $endTime)
+              ->where('dayOfWeek', $dayOfWeek);
+    } else {
+        // Если время не передано — ничего не удаляем
+        return ['status' => 'error', 'message' => 'Не указано время брони.', 'deleted_count' => 0];
+    }
+
+    $deleted = $query->delete();
+
+    Log::info("cancelBooking: deleted {$deleted} record(s) for {$auditory->name}");
+
+    return $deleted > 0
+        ? ['status' => 'ok', 'message' => "Бронь отменена.", 'deleted_count' => $deleted]
+        : ['status' => 'not_found', 'message' => 'Запись брони не найдена.', 'deleted_count' => 0];
+}
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
     private function resolveCorpus(?string $locationId): string
