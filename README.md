@@ -2,6 +2,49 @@
 
 Монорепозиторий системы для управления аудиториями и учебными активностями. Внутри объединены веб-интерфейсы, backend-сервисы, Telegram-бот, сервер компьютерного зрения для камер и прошивка для ESP-устройств.
 
+---
+
+## 🚀 БЫСТРЫЙ СТАРТ
+
+### Запуск всех сервисов одной командой
+
+После установки всех зависимостей (см. ниже), просто запустите:
+
+**Windows (PowerShell):**
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+.\start-project.ps1
+```
+
+**Windows (Command Prompt):**
+```batch
+start-project.bat
+```
+
+**Mac/Linux (Bash):**
+```bash
+./start-project.sh
+```
+
+Скрипт автоматически:
+- ✅ Проверит все зависимости
+- ✅ Создаст необходимые .env файлы
+- ✅ Установит npm/pip пакеты (если нужно)
+- ✅ Запустит PostgreSQL в Docker
+- ✅ Запустит все 6 сервисов в отдельных окнах терминала
+
+**После запуска все сервисы будут доступны по адресам:**
+| Сервис | URL |
+|--------|-----|
+| 🌐 Frontend | http://localhost:5173 |
+| 🔗 Backend API | http://localhost:4000/api/v1 |
+| 🏛️ PHP/Laravel | http://localhost:8000 |
+| 🤖 Telegram Bot | Telegram: `/find`, `/status` |
+| 🎥 Camera Server | localhost:8888 |
+| 🐘 PostgreSQL | localhost:5432 |
+
+---
+
 ## Что находится в репозитории
 
 ### `MainPage/`

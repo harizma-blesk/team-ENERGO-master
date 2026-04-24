@@ -320,6 +320,23 @@ async def _execute_search(
         "corpus": corpus,
     }
     await user_storage.save_active_booking(user_id, booking_data)
+    if free_rooms:
+        from datetime import datetime, timedelta
+        now = datetime.now()
+        start_time = now.strftime('%H:%M')
+        end_time = (now + timedelta(minutes=BOOKING_DURATION_MINUTES)).strftime('%H:%M')
+        day_of_week = now.isoweekday()  # 1=пн, 7=вс
+
+        try:
+            await php_client._request('POST', '/api/schedule/book', payload={
+                'auditory_name': room_info,
+                'start_time': start_time,
+                'end_time': end_time,
+                'day_of_week': day_of_week,
+            })
+            logger.info(f"Booking saved to DB: {room_info} {start_time}-{end_time}")
+        except Exception as exc:
+            logger.warning(f"Failed to save booking to DB: {exc}")
     await state.clear()
 
     text = format_search_result(response)

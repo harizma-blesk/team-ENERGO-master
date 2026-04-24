@@ -65,6 +65,41 @@ class ScheduleController extends Controller
     return response()->json($list);
 }
 
+
+public function book(Request $request): JsonResponse
+{
+    $auditoryName = $request->input('auditory_name');
+    $startTime    = $request->input('start_time'); // "14:00"
+    $endTime      = $request->input('end_time');   // "15:20"
+    $dayOfWeek    = $request->input('day_of_week'); // 1-7
+
+    $auditory = \App\Models\Auditory::where('name', $auditoryName)->first();
+    if (!$auditory) {
+        return response()->json(['status' => 'error', 'message' => 'Кабинет не найден'], 404);
+    }
+
+    \App\Models\AuditoryJournal::firstOrCreate(
+        [
+            'aud_id'    => $auditory->id,
+            'dayOfWeek' => $dayOfWeek,
+            'startTime' => $startTime,
+            'endTime'   => $endTime,
+        ],
+        [
+            'duration'   => $this->minutesBetween($startTime, $endTime),
+            'timeStatus' => 1,
+        ]
+    );
+
+    return response()->json(['status' => 'ok']);
+}
+
+private function minutesBetween(string $start, string $end): int
+{
+    [$sh, $sm] = array_map('intval', explode(':', $start));
+    [$eh, $em] = array_map('intval', explode(':', $end));
+    return ($eh * 60 + $em) - ($sh * 60 + $sm);
+}
     /**
      * GET /api/schedule/journal
      */
