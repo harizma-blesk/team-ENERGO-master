@@ -43,23 +43,30 @@ class BotBridgeService
     $needProjector   = (bool)($request['filters']['need_projector'] ?? false);
 
     $startAt = $request['start_at'] ?? null;
-    $dt = $startAt ? new \DateTime($startAt) : new \DateTime();
+    if ($startAt) {
+        $dt = new \DateTime($startAt, new \DateTimeZone('UTC'));
+        $dt->setTimezone(new \DateTimeZone('Asia/Almaty'));
+    } else {
+        $dt = new \DateTime('now', new \DateTimeZone('Asia/Almaty'));
+    }
 
     $dayOfWeek = (int)$dt->format('N');
     $startTime = $dt->format('H:i');
     $endTime   = (clone $dt)->modify("+{$durationMinutes} minutes")->format('H:i');
 
+    Log::info("findRooms: dayOfWeek={$dayOfWeek}, startTime={$startTime}, endTime={$endTime}");
+
     $corpus = $this->resolveCorpus($locationId);
 
     $query = Auditory::where('corpus', $corpus);
-    if ($floor !== null)    $query->where('floor', $floor);
-    if ($minCapacity > 0)   $query->where('capacity', '>=', $minCapacity);
-    if ($needProjector)     $query->where('has_projector', 1);
+    if ($floor !== null)  $query->where('floor', $floor);
+    if ($minCapacity > 0) $query->where('capacity', '>=', $minCapacity);
+    if ($needProjector)   $query->where('has_projector', 1);
 
     $auditories = $query->get();
 
     $freeRooms    = [];
-    $alternatives = []; // ← инициализируем здесь
+    $alternatives = [];
 
     foreach ($auditories as $aud) {
         $busy = AuditoryJournal::where('aud_id', $aud->id)
@@ -72,9 +79,7 @@ class BotBridgeService
 
         if (!$busy) {
             $isOccupied = (bool)$aud->is_occupied;
-
-            // Проверяем есть ли камера для этой аудитории
-            $hasCamera = \App\Models\Camera::where('auditory_id', $aud->id)->exists();
+            $hasCamera  = \App\Models\Camera::where('auditory_id', $aud->id)->exists();
 
             $roomData = [
                 'name'          => $aud->name,
@@ -84,12 +89,12 @@ class BotBridgeService
                 'capacity'      => $aud->capacity,
                 'schedule_free' => true,
                 'camera_free'   => !$isOccupied,
-                'camera_status' => $hasCamera ? 'online' : 'offline', // ← offline если камеры нет
+                'camera_status' => $hasCamera ? 'online' : 'offline',
                 'auditory_id'   => $aud->id,
             ];
 
             if ($isOccupied) {
-                $alternatives[] = $roomData; // ← теперь попадает в alternatives
+                $alternatives[] = $roomData;
             } else {
                 $freeRooms[] = $roomData;
             }
@@ -98,7 +103,7 @@ class BotBridgeService
 
     return [
         'free_rooms'   => $freeRooms,
-        'alternatives' => $alternatives, // ← возвращаем alternatives
+        'alternatives' => $alternatives,
         'reason'       => empty($freeRooms) ? 'Свободных кабинетов не найдено' : null,
     ];
 }

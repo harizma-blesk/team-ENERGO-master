@@ -38,6 +38,7 @@ class ScheduleService
         $colSubject  = $this->findColumn($header, 'предмет');
         $colTeacher  = $this->findColumn($header, 'преподаватель');
         $colRoom     = $this->findColumn($header, 'кабинет');
+        $colCapacity = $this->findColumn($header, 'вместимость');
         $colCamIp    = $this->findColumn($header, 'камера_ip');
         $colCamPort  = $this->findColumn($header, 'камера_порт');
         $colCamLogin = $this->findColumn($header, 'камера_логин');
@@ -66,10 +67,12 @@ class ScheduleService
                     $dayOfWeek = $this->parseDayOfWeek((string)$dayStr);
                     if ($dayOfWeek === 0) { $rowsSkipped++; continue; }
 
-                    $roomName = trim((string)$roomStr);
+                   $roomName = trim((string)$roomStr);
                     $corpus   = $this->extractCorpus($roomName);
 
                     // ── Аудитория ─────────────────────────────────────────
+                    $capacityVal = $colCapacity >= 0 ? (int)$this->safeGet($row, $colCapacity) : null;
+
                     if (!isset($cache[$roomName])) {
                         $number   = $this->extractNumber($roomName);
                         $floor    = $number ? intdiv($number, 100) : null;
@@ -79,15 +82,16 @@ class ScheduleService
                             'corpus'   => $corpus,
                             'floor'    => $floor,
                             'category' => null,
+                            'capacity' => $capacityVal ?: null,
                         ]);
                         $cache[$roomName] = $auditory->toArray();
                         $auditoriesAdded++;
-                        Log::debug("Created auditory: id={$auditory->id}, name={$roomName}");
+                    } elseif ($capacityVal > 0 && empty($cache[$roomName]['capacity'])) {
+                        Auditory::where('id', $cache[$roomName]['id'])->update(['capacity' => $capacityVal]);
+                        $cache[$roomName]['capacity'] = $capacityVal;
                     }
 
-                    $audId = $cache[$roomName]['id'];
-
-                    // ── Камера ────────────────────────────────────────────
+                    $audId = $cache[$roomName]['id'];                     // ── Камера ────────────────────────────────────────────
                     if ($colCamIp >= 0) {
                         $camIp = trim((string)($this->safeGet($row, $colCamIp) ?? ''));
 
@@ -137,20 +141,27 @@ class ScheduleService
                         }
                     }
 
-                    // ── Журнал ────────────────────────────────────────────
+                   // ── Журнал ────────────────────────────────────────────
                     $times = $this->parseTime((string)$timeStr);
                     if ($times !== null) {
                         [$startTime, $endTime] = $times;
 
-                        AuditoryJournal::create([
-                            'aud_id'     => $audId,
-                            'dayOfWeek'  => $dayOfWeek,
-                            'startTime'  => $startTime,
-                            'endTime'    => $endTime,
-                            'duration'   => $this->minutesBetween($startTime, $endTime),
-                            'timeStatus' => 1,
-                        ]);
-                        $journalAdded++;
+                        $journal = AuditoryJournal::firstOrCreate(
+                            [
+                                'aud_id'    => $audId,
+                                'dayOfWeek' => $dayOfWeek,
+                                'startTime' => $startTime,
+                                'endTime'   => $endTime,
+                            ],
+                            [
+                                'duration'   => $this->minutesBetween($startTime, $endTime),
+                                'timeStatus' => 1,
+                            ]
+                        );
+
+                        if ($journal->wasRecentlyCreated) {
+                            $journalAdded++;
+                        }
                     } else {
                         Log::warning("Row {$i}: cannot parse time '{$timeStr}'");
                         $rowsSkipped++;
