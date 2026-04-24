@@ -13,6 +13,8 @@ import logging
 from typing import Callable, Optional, Dict, Any, Union
 from dataclasses import dataclass
 
+
+
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -323,98 +325,51 @@ class TCPClient:
 
 
 class NetworkManager:
-    """Менеджер сетевых подключений"""
+    """Менеджер сетевых подключений — UDP/TCP отключены (single machine mode)"""
 
     def __init__(self, config: Union[NetworkConfig, object]):
-        # Поддержка передачи как NetworkConfig, так и Config
         if not isinstance(config, NetworkConfig):
             try:
                 from src.core.config import Config
             except ImportError:
                 Config = None
-
             if Config is not None and isinstance(config, Config):
                 config = NetworkConfig.from_config(config)
             else:
                 raise TypeError("NetworkManager requires NetworkConfig or Config instance")
 
         self.config = config
-
-        # Создаем компоненты
-        self.udp_server = UDPServer(config)
-        self.udp_client = UDPClient(config)
-        self.tcp_client = TCPClient(config)
-
         self.message_handlers: Dict[str, Callable[[Dict[str, Any]], None]] = {}
+        self.udp_server = None
+        self.udp_client = None
+        self.tcp_client = None
 
     def start(self) -> bool:
-        """Запустить все сетевые компоненты"""
-        logger.info("Starting network manager...")
-
-        success = True
-
-        if not self.udp_server.start():
-            success = False
-
-        if not self.udp_client.connect():
-            success = False
-
-        if self.tcp_client.connect():
-            self.tcp_client.start_auto_reconnect()
-        else:
-            logger.warning("TCP client initial connection failed, auto-reconnect enabled")
-            self.tcp_client.start_auto_reconnect()
-
-        self.udp_server.set_message_callback(self._handle_udp_message)
-
-        if success:
-            logger.info("Network manager started successfully")
-        else:
-            logger.warning("Network manager started with some failures")
-
-        return success
+        logger.info("Network manager started (UDP/TCP disabled - single machine mode)")
+        return True
 
     def stop(self):
-        """Остановить все сетевые компоненты"""
-        logger.info("Stopping network manager...")
-
-        self.udp_server.stop()
-        self.udp_client.disconnect()
-        self.tcp_client.stop_auto_reconnect()
-        self.tcp_client.disconnect()
-
         logger.info("Network manager stopped")
 
     def register_message_handler(self, message_type: str, handler: Callable[[Dict[str, Any]], None]):
-        """Зарегистрировать обработчик для типа сообщений"""
         self.message_handlers[message_type] = handler
-        logger.info(f"Registered handler for message type: {message_type}")
 
     def send_detection_update(self, camera_id: str, people_count: int) -> bool:
-        """Отправить обновление данных детекции"""
-        return self.udp_client.send_detection_data(camera_id, people_count)
+        return True
 
     def send_heartbeat(self, camera_id: str) -> bool:
-        """Отправить heartbeat"""
-        return self.udp_client.send_heartbeat(camera_id)
+        return True
 
     def request_room_info(self, room_number: str, time_slot: str) -> Optional[Dict[str, Any]]:
-        """Запросить информацию о кабинете"""
-        return self.tcp_client.send_room_request(room_number, time_slot)
+        return None
 
     def _handle_udp_message(self, message: Dict[str, Any]):
-        """Обработать входящее UDP сообщение"""
         message_type = message.get("type")
-
         if not message_type:
-            logger.warning("UDP message missing type field")
             return
-
         handler = self.message_handlers.get(message_type)
         if handler:
             try:
                 handler(message)
             except Exception as e:
                 logger.error(f"Error executing handler for {message_type}: {e}")
-        else:
-            logger.warning(f"No handler registered for UDP message type: {message_type}")
