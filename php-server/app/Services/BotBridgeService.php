@@ -77,28 +77,26 @@ class BotBridgeService
             })
             ->exists();
 
-        if (!$busy) {
-            $isOccupied = (bool)$aud->is_occupied;
-            $hasCamera  = \App\Models\Camera::where('auditory_id', $aud->id)->exists();
+                if (!$busy) {
+                    $isOccupied = (bool)$aud->is_occupied;
+                    $hasCamera  = \App\Models\Camera::where('auditory_id', $aud->id)->exists();
 
-            $roomData = [
-                'name'          => $aud->name,
-                'location_name' => $corpus,
-                'location_id'   => $locationId,
-                'floor'         => $aud->floor,
-                'capacity'      => $aud->capacity,
-                'schedule_free' => true,
-                'camera_free'   => !$isOccupied,
-                'camera_status' => $hasCamera ? 'online' : 'offline',
-                'auditory_id'   => $aud->id,
-            ];
+                    $roomData = [
+                        'name'          => $aud->name,
+                        'location_name' => $corpus,
+                        'location_id'   => $locationId,
+                        'floor'         => $aud->floor,
+                        'capacity'      => $aud->capacity,
+                        'schedule_free' => true,
+                        'camera_free'   => !$isOccupied,
+                        'camera_status' => $hasCamera ? 'online' : 'offline',
+                        'auditory_id'   => $aud->id,
+                    ];
 
-            if ($isOccupied) {
-                $alternatives[] = $roomData;
-            } else {
-                $freeRooms[] = $roomData;
-            }
-        }
+                    // По расписанию свободно — всегда в free_rooms
+                    // camera_free просто информирует что сейчас там есть люди
+                    $freeRooms[] = $roomData;
+                }
     }
 
     return [
