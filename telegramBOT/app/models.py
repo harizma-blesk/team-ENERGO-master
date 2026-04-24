@@ -7,9 +7,9 @@ from pydantic import BaseModel, Field
 
 CLASS_START_TIMES = [
     time(8, 0),
-    time(9, 40),
-    time(11, 20),
-    time(13, 0),
+    time(9, 30),
+    time(11, 0),
+    time(12, 40),
     time(14, 10),
     time(15, 30),
 ]
@@ -24,7 +24,6 @@ def find_next_available_slot(
     now = datetime.now()
     today = now.date()
 
-    # Собираем занятые интервалы из броней
     booked_intervals: list[tuple[datetime, datetime]] = []
     for b in (existing_bookings or []):
         try:
@@ -34,48 +33,47 @@ def find_next_available_slot(
         except Exception:
             continue
 
-    def shift_past_bookings(candidate: datetime) -> datetime:
-        """Сдвигаем кандидата вперёд пока он пересекается с существующей бронью."""
+    booked_intervals.sort(key=lambda x: x[0])
+
+    def shift_past_all(candidate: datetime) -> datetime:
         changed = True
         while changed:
             changed = False
             cand_end = candidate + timedelta(minutes=duration_minutes)
             for b_start, b_end in booked_intervals:
                 if candidate < b_end and cand_end > b_start:
-                    candidate = b_end  # сдвигаемся на конец конфликтующей брони
+                    candidate = b_end
                     changed = True
                     break
         return candidate
 
-    for i, start in enumerate(CLASS_START_TIMES):
-        slot_start = datetime.combine(today, start)
-        slot_end   = slot_start + timedelta(minutes=90)
+    def shift_past_class_times(candidate: datetime) -> datetime:
+        changed = True
+        while changed:
+            changed = False
+            for start in CLASS_START_TIMES:
+                slot_start = datetime.combine(today, start)
+                slot_end   = slot_start + timedelta(minutes=90)
+                grace_deadline = slot_start + timedelta(minutes=GRACE_PERIOD_MINUTES)
 
-        if slot_start <= now < slot_end:
-            grace_deadline = slot_start + timedelta(minutes=GRACE_PERIOD_MINUTES)
+                if slot_start <= candidate < slot_end:
+                    if candidate <= grace_deadline:
+                        if candidate + timedelta(minutes=duration_minutes) <= slot_end:
+                            return candidate
+                    candidate = slot_end
+                    changed = True
+                    break
+        return candidate
 
-            if now <= grace_deadline:
-                booking_end = now + timedelta(minutes=duration_minutes)
-                if booking_end <= slot_end:
-                    candidate = shift_past_bookings(now)
-                    if candidate + timedelta(minutes=duration_minutes) <= slot_end:
-                        return candidate
-                return _next_slot_after(i, slot_end, today)
-            else:
-                return _next_slot_after(i, slot_end, today)
+    candidate = now
+    for _ in range(20):
+        new_candidate = shift_past_all(candidate)
+        new_candidate = shift_past_class_times(new_candidate)
+        if new_candidate == candidate:
+            break
+        candidate = new_candidate
 
-        if now < slot_start:
-            candidate = shift_past_bookings(now)
-            return candidate
-
-    return shift_past_bookings(now)
-
-
-def _next_slot_after(current_index: int, slot_end: datetime, today: date) -> datetime:
-    next_index = current_index + 1
-    if next_index < len(CLASS_START_TIMES):
-        return datetime.combine(today, CLASS_START_TIMES[next_index])
-    return slot_end
+    return candidate
 
 
 class FindRoomQuery(BaseModel):

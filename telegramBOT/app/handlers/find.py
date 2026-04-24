@@ -295,7 +295,7 @@ async def _execute_search(
             or "Кабинет"
         )
         corpus = first_room.get("location_name")
-        auditory_id = first_room.get("id")  # ← берём id кабинета
+        auditory_id = first_room.get("auditory_id") # ← берём id кабинета
 
         # ↓ Получаем существующие брони этого кабинета
         existing_bookings: list[dict] = []
