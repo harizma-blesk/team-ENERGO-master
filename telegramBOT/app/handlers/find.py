@@ -119,11 +119,12 @@ async def cmd_cancel_booking(
 
     # Call PHP API to delete from DB
     cancel_payload = {
-        "telegram_user_id": user_id,
-        "auditory_name": booking.get("room_info", ""),
-        "corpus": booking.get("corpus", ""),
-        "start_time": booking.get("available_from", ""),
-        "end_time": booking.get("available_until", ""),
+    "telegram_user_id": user_id,
+    "auditory_name":    booking.get("room_info", ""),
+    "corpus":           booking.get("corpus", ""),
+    "start_time":       booking.get("available_from", ""),
+    "end_time":         booking.get("available_until", ""),
+    "day_of_week":      booking.get("day_of_week"),  # ← добавь
     }
 
     php_error = None
@@ -373,11 +374,12 @@ async def callback_cancel_booking(
 
     # Call PHP API to delete from DB
     cancel_payload = {
-        "telegram_user_id": user_id,
-        "auditory_name": booking.get("room_info", ""),
-        "corpus": booking.get("corpus", ""),
-        "start_time": booking.get("available_from", ""),
-        "end_time": booking.get("available_until", ""),
+    "telegram_user_id": user_id,
+    "auditory_name":    booking.get("room_info", ""),
+    "corpus":           booking.get("corpus", ""),
+    "start_time":       booking.get("available_from", ""),
+    "end_time":         booking.get("available_until", ""),
+    "day_of_week":      booking.get("day_of_week"),  # ← добавь
     }
 
     php_error = None
