@@ -173,3 +173,24 @@ class PhpClient:
 
     async def close(self) -> None:
         await self._client.aclose()
+
+    async def get_auditories(self) -> list[dict]:
+        """Получить список всех аудиторий из БД."""
+        resp = await self._client.get(
+            "/api/schedule/auditories",
+            headers=self._auth_headers(),
+        )
+        if resp.status_code == 200:
+            return resp.json()
+        return []
+    
+    async def get_auditories(self) -> list[dict]:
+        """Получить список всех аудиторий из БД."""
+        resp = await self._client.get(
+            "/api/schedule/auditories",
+            headers=self._auth_headers(),
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            return data if isinstance(data, list) else []
+        return []

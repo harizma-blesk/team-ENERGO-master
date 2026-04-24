@@ -58,9 +58,10 @@ class ScheduleController extends Controller
         'id'       => $a->id,
         'name'     => $a->name,
         'number'   => $a->number,
+        'floor'    => $a->floor,  // ← добавить
         'corpus'   => $a->corpus,
         'category' => $a->category,
-    ])->values()->toArray(); // Добавляем values()->toArray() для чистого массива
+    ])->values()->toArray();
 
     return response()->json($list);
 }

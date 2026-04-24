@@ -8,7 +8,7 @@ from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BotCommand, ErrorEvent
 
-from app.config import get_settings
+from app.config import get_settings, build_locations_from_auditories
 from app.handlers import admin, common, find
 from app.services.php_client import PhpClient
 from app.storage.user_storage import UserStorage
@@ -40,6 +40,19 @@ async def run_bot() -> None:
     user_storage = UserStorage(settings.storage_path)
     await user_storage.init()
     php_client = PhpClient(settings)
+
+    # Загружаем локации и этажи из БД
+    try:
+        auditories = await php_client.get_auditories()
+        if auditories:
+            settings.locations_list = build_locations_from_auditories(auditories)
+            logger.info("Loaded %d locations from DB: %s",
+                        len(settings.locations_list),
+                        [l.id for l in settings.locations_list])
+        else:
+            logger.warning("No auditories found in DB, using .env locations")
+    except Exception as exc:
+        logger.warning("Failed to load auditories from DB: %s", exc)
 
     bot = Bot(
         token=settings.telegram_bot_token.get_secret_value(),

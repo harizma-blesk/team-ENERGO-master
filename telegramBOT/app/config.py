@@ -121,3 +121,29 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Get the bot settings from environment variables."""
     return Settings()
+
+def build_locations_from_auditories(auditories: list[dict]) -> list[LocationOption]:
+    corpus_floors: dict[str, set[int]] = {}
+
+    for aud in auditories:
+        corpus = aud.get("corpus")
+        number = aud.get("number")
+        if not corpus:
+            continue
+        if corpus not in corpus_floors:
+            corpus_floors[corpus] = set()
+        # Извлекаем этаж из первой цифры номера кабинета (101 → 1, 210 → 2)
+        if number is not None:
+            floor = int(str(number)[0])
+            corpus_floors[corpus].add(floor)
+
+    corpus_to_id = {"А": "corp_a", "Б": "corp_b", "Д": "corp_d"}
+
+    locations = []
+    for corpus, floors in sorted(corpus_floors.items()):
+        locations.append(LocationOption(
+            id=corpus_to_id.get(corpus, corpus.lower()),
+            name=f"Корпус {corpus}",
+            floors=sorted(floors),
+        ))
+    return locations
