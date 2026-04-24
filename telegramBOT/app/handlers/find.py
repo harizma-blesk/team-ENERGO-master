@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from email.mime import message
 import logging
 from datetime import date, datetime, timedelta
 
@@ -18,11 +17,10 @@ from app.keyboards.menus import (
     location_keyboard,
     result_actions_keyboard,
 )
-from app.models import FindRoomQuery
+from app.models import FindRoomQuery, find_next_available_slot  # ← добавили импорт
 from app.services.formatter import extract_free_rooms, format_room_details, format_search_result
 from app.services.php_client import PhpClient, PhpClientError
 from app.storage.user_storage import UserStorage
-from app.services import php_client
 
 
 logger = logging.getLogger(__name__)
@@ -37,7 +35,6 @@ class FindRoomStates(StatesGroup):
 
 
 def _format_active_booking(booking: dict) -> str:
-    """Format active booking info for display."""
     lines = ["<b>У вас уже есть активная запись:</b>\n"]
     if booking.get("location_name"):
         lines.append(f"📍 Локация: <b>{booking['location_name']}</b>")
@@ -68,8 +65,6 @@ async def cmd_find(message: Message, state: FSMContext, settings: Settings, user
         return
 
     user_id = message.from_user.id if message.from_user else 0
-
-    # Check for active booking
     active_booking = await user_storage.get_active_booking(user_id) if user_id else None
     if active_booking:
         text = _format_active_booking(active_booking)
@@ -117,14 +112,13 @@ async def cmd_cancel_booking(
         await message.answer("У вас нет активной брони.")
         return
 
-    # Call PHP API to delete from DB
     cancel_payload = {
-    "telegram_user_id": user_id,
-    "auditory_name":    booking.get("room_info", ""),
-    "corpus":           booking.get("corpus", ""),
-    "start_time":       booking.get("available_from", ""),
-    "end_time":         booking.get("available_until", ""),
-    "day_of_week":      booking.get("day_of_week"),  # ← добавь
+        "telegram_user_id": user_id,
+        "auditory_name":    booking.get("room_info", ""),
+        "corpus":           booking.get("corpus", ""),
+        "start_time":       booking.get("available_from", ""),
+        "end_time":         booking.get("available_until", ""),
+        "day_of_week":      booking.get("day_of_week"),
     }
 
     php_error = None
@@ -189,7 +183,6 @@ async def callback_find_location(
     if location.floors:
         await _ask_floor(callback.message, state, location.floors)
         return
-    # No floors — go directly to search
     await state.update_data(floor=None)
     await _execute_search(
         message=callback.message,
@@ -258,6 +251,8 @@ async def _execute_search(
         return
 
     payload = query.to_php_payload()
+    logger.info("PAYLOAD TO PHP: %s", payload)  # ← сюда
+    logger.info("_execute_search: payload=%s", payload)
     logger.info("_execute_search: payload=%s", payload)
     await message.answer(
         f"🔍 Ищу свободный кабинет на сегодня ({today.isoformat()}) "
@@ -265,16 +260,11 @@ async def _execute_search(
     )
 
     try:
-        logger.info("_execute_search: calling php_client.bridge(POST)...")
         response = await php_client.bridge(payload=payload)
         logger.info("_execute_search: response=%s", response)
     except PhpClientError as exc:
         await state.clear()
-        logger.error(
-            "find_request_failed: status_code=%s details=%s",
-            exc.status_code,
-            exc.details,
-        )
+        logger.error("find_request_failed: status_code=%s details=%s", exc.status_code, exc.details)
         await message.answer(
             "Сервис поиска временно недоступен. Попробуйте позже.\n"
             f"Техническая ошибка: {exc}"
@@ -283,40 +273,20 @@ async def _execute_search(
     except Exception as exc:
         await state.clear()
         logger.exception("find_request_unexpected_error")
-        await message.answer(
-            "Неожиданная ошибка при запросе к PHP API.\n"
-            f"Детали: {exc}"
-        )
+        await message.answer(f"Неожиданная ошибка при запросе к PHP API.\nДетали: {exc}")
         return
 
     await user_storage.save_last_request(user_id, payload)
     await user_storage.save_last_response(user_id, response)
 
-    await user_storage.save_last_request(user_id, payload)
-    await user_storage.save_last_response(user_id, response)
-
-    # Save active booking
     free_rooms = extract_free_rooms(response)
     room_info = None
     corpus = None
 
-    # Вычисляем время бронирования
-    now = datetime.now()
-    start_time = now.strftime('%H:%M')
-    end_time = (now + timedelta(minutes=BOOKING_DURATION_MINUTES)).strftime('%H:%M')
-    day_of_week = now.isoweekday()
+  
 
-    free_rooms = extract_free_rooms(response)
-    room_info = None
-    corpus = None
-
-    now = datetime.now()
-    start_time = now.strftime('%H:%M')
-    end_time = (now + timedelta(minutes=BOOKING_DURATION_MINUTES)).strftime('%H:%M')
-    day_of_week = now.isoweekday()
-
-    if free_rooms:                          # ← 4 пробела
-        first_room = free_rooms[0]          # ← 8 пробелов
+    if free_rooms:
+        first_room = free_rooms[0]
         room_info = str(
             first_room.get("name")
             or first_room.get("room_name")
@@ -325,6 +295,36 @@ async def _execute_search(
             or "Кабинет"
         )
         corpus = first_room.get("location_name")
+        auditory_id = first_room.get("id")  # ← берём id кабинета
+
+        # ↓ Получаем существующие брони этого кабинета
+        existing_bookings: list[dict] = []
+        if auditory_id:
+            try:
+                journal = await php_client._request(
+                    "GET", f"/api/schedule/journal/{auditory_id}"
+                )
+                # journal может быть списком — но _request ждёт dict
+                # поэтому используем httpx напрямую через php_client._client
+                resp = await php_client._client.get(
+                    f"/api/schedule/journal/{auditory_id}",
+                    headers=php_client._auth_headers(),
+                )
+                if resp.status_code == 200:
+                    data_journal = resp.json()
+                    today_dow = date.today().isoweekday()
+                    existing_bookings = [
+                        e for e in data_journal
+                        if e.get("dayOfWeek") == today_dow
+                    ]
+            except Exception as exc:
+                logger.warning(f"Failed to fetch journal for room {auditory_id}: {exc}")
+
+        # ↓ Теперь вычисляем слот с учётом реальных броней
+        booking_start = find_next_available_slot(BOOKING_DURATION_MINUTES, existing_bookings)
+        start_time = booking_start.strftime('%H:%M')
+        end_time = (booking_start + timedelta(minutes=BOOKING_DURATION_MINUTES)).strftime('%H:%M')
+        day_of_week = booking_start.isoweekday()
 
         booking_data = {
             "location_id":      data.get("location_id"),
@@ -347,11 +347,10 @@ async def _execute_search(
                 'end_time':      end_time,
                 'day_of_week':   day_of_week,
             })
-            logger.info(f"Booking saved to DB: {room_info} {start_time}-{end_time}")
         except Exception as exc:
             logger.warning(f"Failed to save booking to DB: {exc}")
 
-    await state.clear()                     # ← 4 пробела
+    await state.clear()
 
     text = format_search_result(response)
     await message.answer(text)
@@ -372,14 +371,13 @@ async def callback_cancel_booking(
             await callback.message.answer("У вас нет активной брони.")
         return
 
-    # Call PHP API to delete from DB
     cancel_payload = {
-    "telegram_user_id": user_id,
-    "auditory_name":    booking.get("room_info", ""),
-    "corpus":           booking.get("corpus", ""),
-    "start_time":       booking.get("available_from", ""),
-    "end_time":         booking.get("available_until", ""),
-    "day_of_week":      booking.get("day_of_week"),  # ← добавь
+        "telegram_user_id": user_id,
+        "auditory_name":    booking.get("room_info", ""),
+        "corpus":           booking.get("corpus", ""),
+        "start_time":       booking.get("available_from", ""),
+        "end_time":         booking.get("available_until", ""),
+        "day_of_week":      booking.get("day_of_week"),
     }
 
     php_error = None
@@ -393,7 +391,6 @@ async def callback_cancel_booking(
         logger.exception("cancel_booking unexpected error")
         php_error = str(exc)
 
-    # Always clear local booking
     await user_storage.cancel_booking(user_id)
 
     if callback.message:

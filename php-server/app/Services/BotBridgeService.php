@@ -42,12 +42,18 @@ class BotBridgeService
     $minCapacity     = (int)($request['filters']['min_capacity'] ?? 0);
     $needProjector   = (bool)($request['filters']['need_projector'] ?? false);
 
-    $startAt = $request['start_at'] ?? null;
+   $startAt = $request['start_at'] ?? null;
     if ($startAt) {
-        $dt = new \DateTime($startAt, new \DateTimeZone('UTC'));
+    // Если содержит Z или +XX:XX — это UTC/с timezone, конвертируем в Almaty
+    // Если без timezone (от бота) — считаем что уже Almaty
+    if (str_contains($startAt, 'Z') || preg_match('/[+-]\d{2}:\d{2}$/', $startAt)) {
+        $dt = new \DateTime($startAt);
         $dt->setTimezone(new \DateTimeZone('Asia/Almaty'));
     } else {
-        $dt = new \DateTime('now', new \DateTimeZone('Asia/Almaty'));
+        $dt = new \DateTime($startAt, new \DateTimeZone('Asia/Almaty'));
+    }
+    } else {
+    $dt = new \DateTime('now', new \DateTimeZone('Asia/Almaty'));
     }
 
     $dayOfWeek = (int)$dt->format('N');
