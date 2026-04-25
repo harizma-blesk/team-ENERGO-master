@@ -339,22 +339,7 @@ const normalizeGeneratedQuestions = (
 };
 
 const callGemini = async (input) => {
-  if (!env.GEMINI_API_KEY) {
-    return null;
-  }
-
-  console.log(`[ai-service] Starting Gemini request with model: ${env.GEMINI_MODEL}, key prefix: ${env.GEMINI_API_KEY?.slice(0, 10)}...`);
-
-  const endpoints = [
-    {
-      tag: 'v1',
-      url: `https://generativelanguage.googleapis.com/v1/models/${env.GEMINI_MODEL}:generateContent?key=${env.GEMINI_API_KEY}`
-    },
-    {
-      tag: 'v1beta',
-      url: `https://generativelanguage.googleapis.com/v1beta/models/${env.GEMINI_MODEL}:generateContent?key=${env.GEMINI_API_KEY}`
-    }
-  ];
+  if (!env.GEMINI_API_KEY) return null;
 
   const promptText = [
     `Ты генерируешь учебный тест по предмету "${input.subjectName}".`,
@@ -371,84 +356,59 @@ const callGemini = async (input) => {
     `4) Для OPEN_SHORT обязательно expectedAnswer, keywords, rubric.`,
     `5) Не используй шаблонные фразы вида "корректное утверждение", "вариант A/B".`,
     `6) Тексты вариантов ответа должны быть содержательными и различимыми.`,
-    `Пример элемента: {"type":"SINGLE_CHOICE","stem":"...","topicCode":"...","options":[{"code":"A","text":"..."},{"code":"B","text":"..."},{"code":"C","text":"..."},{"code":"D","text":"..."}],"correctOptionCodes":["A"]}`
+    `Пример элемента: {"type":"SINGLE_CHOICE","stem":"...","topicCode":"...","options":[{"code":"A","text":"...","isCorrect":false},{"code":"B","text":"...","isCorrect":true},{"code":"C","text":"...","isCorrect":false},{"code":"D","text":"...","isCorrect":false}],"correctOptionCodes":["B"]}`
   ].join('\n');
 
-  const body = {
-    contents: [{ role: 'user', parts: [{ text: promptText }] }],
-    generationConfig: {
-      temperature: 0.4
-    }
-  };
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${env.GEMINI_API_KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'http://localhost:4000',
+        'X-Title': 'EduBot'
+      },
+      body: JSON.stringify({
+        model: env.GEMINI_MODEL,
+        messages: [{ role: 'user', content: promptText }],
+        temperature: 0.4
+      }),
+      signal: AbortSignal.timeout(30000)
+    });
 
-  const errors = [];
+    const rawText = await res.text();
+    console.log('[ai-service] Raw response:', rawText.slice(0, 1000));
 
-  for (const endpoint of endpoints) {
+    let raw;
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
-
-      const res = await fetch(endpoint.url, {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json'
-        },
-        body: JSON.stringify(body),
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-
-      const rawText = await res.text();
-      console.log(`[ai-service] ${endpoint.tag} raw response:`, rawText.slice(0, 500));
-      if (!res.ok) {
-        const compact = rawText.replace(/\s+/g, ' ').slice(0, 220);
-        errors.push(`${endpoint.tag} HTTP ${res.status}: ${compact}`);
-        continue;
-      }
-
-      let raw;
-      try {
-        raw = JSON.parse(rawText);
-      } catch {
-        errors.push(`${endpoint.tag} invalid JSON response`);
-        continue;
-      }
-
-      const text = raw.candidates
-        ?.flatMap((candidate) => candidate.content?.parts ?? [])
-        .map((part) => part.text?.trim())
-        .find((value) => Boolean(value && value.length > 0));
-
-      if (!text) {
-        errors.push(`${endpoint.tag} empty candidate text`);
-        continue;
-      }
-
-      const questions = parseQuestionsText(text);
-      if (questions.length === 0) {
-        errors.push(`${endpoint.tag} no parseable questions`);
-        continue;
-      }
-
-      const normalized = normalizeGeneratedQuestions(questions, input.difficulty, input.topicCodes, input.subjectName);
-      if (normalized.length === 0) {
-        errors.push(`${endpoint.tag} questions rejected by validator`);
-        continue;
-      }
-
-      return normalized;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'unknown error';
-      errors.push(`${endpoint.tag} ${message}`);
+      raw = JSON.parse(rawText);
+    } catch {
+      console.error('[ai-service] Failed to parse response as JSON');
+      return null;
     }
-  }
 
-  if (errors.length > 0) {
-    console.error(`[ai-service] Gemini request failed: ${errors.join(' | ')}`);
-  }
+    if (!res.ok) {
+      console.error('[ai-service] API error:', raw.error?.message ?? raw);
+      return null;
+    }
 
-  return null;
+    const text = raw.choices?.[0]?.message?.content?.trim();
+    if (!text) {
+      console.error('[ai-service] Empty content in response');
+      return null;
+    }
+
+    const questions = parseQuestionsText(text);
+    if (questions.length === 0) {
+      console.error('[ai-service] No parseable questions');
+      return null;
+    }
+
+    return normalizeGeneratedQuestions(questions, input.difficulty, input.topicCodes, input.subjectName);
+  } catch (err) {
+    console.error('[ai-service] Error:', err.message);
+    return null;
+  }
 };
 
 const buildFallbackQuestion = (
