@@ -20,6 +20,9 @@ class ScheduleService
 {
     $fileName = $dto['fileName'] ?? '';
     $rows     = $dto['rows'] ?? [];
+    // Очищаем журнал перед импортом
+    AuditoryJournal::truncate();
+    Auditory::truncate();;
 
     Log::info("ScheduleService: saving schedule from {$fileName}");
 
@@ -139,6 +142,11 @@ class ScheduleService
                         } catch (\Throwable $e) {
                             Log::warning("Failed to save subject: {$e->getMessage()}");
                         }
+                    }
+                    $subjectVal = $colSubject >= 0 ? trim((string)$this->safeGet($row, $colSubject)) : '';
+                        if (empty($subjectVal)) {
+                        // свободный слот — в журнал не пишем
+                        continue;
                     }
 
                    // ── Журнал ────────────────────────────────────────────
