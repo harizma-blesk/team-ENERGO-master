@@ -13,7 +13,6 @@ from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread
 from PyQt6.QtGui import QAction, QFont, QPalette, QColor
 
 from src.core.config import Config
-from src.core.database import DatabaseManager
 from src.core.camera import CameraManager
 from src.core.detector import PersonDetector
 from src.core.network import NetworkManager
@@ -54,8 +53,7 @@ class MainWindow(QMainWindow):
     """Главное окно приложения"""
 
     def __init__(self,
-                 config: Config,
-                 db_manager: DatabaseManager,
+                 config: Config, 
                  camera_manager: CameraManager,
                  detector: PersonDetector,
                  network_manager: NetworkManager,
@@ -63,7 +61,6 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.config = config
-        self.db_manager = db_manager
         self.camera_manager = camera_manager
         self.detector = detector
         self.network_manager = network_manager
@@ -106,7 +103,7 @@ class MainWindow(QMainWindow):
         self.camera_windows = []
         for cam in self.cameras:
             cam_window = CameraWindow(
-                self.config, cam['manager'], self.detector, self.db_manager,
+                self.config, cam['manager'], self.detector, 
                 auditory_name=cam['auditory_name'],
                 camera_name=cam['camera_name'],
                  laravel_client=cam['laravel_client'], 

@@ -19,7 +19,6 @@ from PyQt6.QtCore import QPoint
 from src.core.config import Config
 from src.core.camera import CameraManager
 from src.core.detector import PersonDetector
-from src.core.database import DatabaseManager
 from src.core.laravel_sync import LaravelSyncClient
 from src.utils.image_utils import ImageConverter, DetectionVisualizer
 
@@ -153,14 +152,13 @@ class CameraWindow(QWidget):
     """Главное окно камеры с видео"""
 
     def __init__(self, config: Config, camera_manager: CameraManager,
-                detector: PersonDetector, db_manager: DatabaseManager,
+                detector: PersonDetector,
                 auditory_name: str = '', camera_name: str = '',
                 laravel_client: LaravelSyncClient = None):
             super().__init__()
             self.config = config
             self.camera_manager = camera_manager
-            self.detector = detector
-            self.db_manager = db_manager
+            self.detector = detector  
             self.auditory_name = auditory_name
             self.camera_name = camera_name
             self.laravel_sync = laravel_client

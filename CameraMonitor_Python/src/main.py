@@ -16,7 +16,6 @@ from PyQt6.QtCore import Qt, QTranslator, QLocale
 from PyQt6.QtGui import QIcon
 
 from src.core.config import Config
-from src.core.database import DatabaseManager
 from src.core.camera import CameraManager, CameraConfig
 from src.core.detector import PersonDetector
 from src.core.network import NetworkManager
@@ -52,7 +51,7 @@ def initialize_components(config: Config) -> tuple:
     try:
         # Инициализация базы данных
         logger.info("Initializing database manager...")
-        db_manager = DatabaseManager(config.db_path)
+        
 
         logger.info("Initializing camera manager...")
         
@@ -126,7 +125,7 @@ def initialize_components(config: Config) -> tuple:
         network_manager = NetworkManager(config)
 
         logger.info("All components initialized successfully")
-        return db_manager, camera_manager, detector, network_manager, cameras
+        return camera_manager, detector, network_manager, cameras
 
     except Exception as e:
         logger.error(f"Failed to initialize components: {e}")
@@ -154,13 +153,12 @@ def main():
         app = setup_application()
 
         # Инициализация компонентов
-        db_manager, camera_manager, detector, network_manager, cameras = initialize_components(config)
+        camera_manager, detector, network_manager, cameras = initialize_components(config)
 
         # Создание главного окна
         logger.info("Creating main window...")
         main_window = MainWindow(
             config=config,
-            db_manager=db_manager,
             camera_manager=camera_manager,
             detector=detector,
             network_manager=network_manager,
