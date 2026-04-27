@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Helpers\TimeUtil;
 use App\Models\Auditory;
 use App\Models\AuditoryJournal;
-use App\Tcp\PythonTcpClient;
 use Illuminate\Support\Facades\Log;
 
 class BotBridgeService
@@ -30,7 +29,7 @@ class BotBridgeService
 
     private static int $requestIdCounter = 0;
 
-    public function __construct(private PythonTcpClient $tcpClient) {}
+    public function __construct() {}
 
     // ─── Find rooms ───────────────────────────────────────────────────────────
 

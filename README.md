@@ -21,31 +21,12 @@
 
 ### Установка и запуск
 
-**1. Клонируй репозиторий:**
+**. Клонируй репозиторий:**
 ```bash
 git clone <repo-url>
 cd team-ENERGO-master
 ```
 
-**2. Запусти все сервисы одной командой:**
-
-**Windows:**
-```batch
-start-project.bat
-```
-
-**Mac/Linux:**
-```bash
-chmod +x start-project.sh
-./start-project.sh
-```
-
-**3. Откройте в браузере:**
-- **Frontend:** http://localhost:8000
-- **API Docs:** http://localhost:4000/docs
-- **Laravel:** http://localhost:3333
-
----
 
 ## 📊 Архитектура
 
@@ -95,6 +76,8 @@ team-ENERGO-master/
 ```bash
 cd MainPage/backend
 npm install
+cp .env.example .env
+npx prisma generate
 npm run dev
 # Открыть: http://localhost:4000/docs
 ```
@@ -103,6 +86,7 @@ npm run dev
 ```bash
 cd MainPage/frontend
 npm install
+cp .env.example .env
 npm run dev
 # Открыть: http://localhost:8000
 ```
@@ -112,7 +96,8 @@ npm run dev
 cd php-server
 composer install
 npm install
-php artisan migrate
+cp .env.example .env
+php artisan migrate --seed
 composer run dev
 # Открыть: http://localhost:3333
 ```
@@ -175,7 +160,6 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 ### MainPage/backend/.env
 ```env
 PORT=4000
-DATABASE_URL=postgresql://user:password@localhost:5432/energo_db
 JWT_ACCESS_SECRET=your-secret-key
 ALLOWED_ORIGINS=http://localhost:8000
 SCHEDULE_PROVIDER_MODE=http
@@ -265,11 +249,3 @@ cd MainPage/frontend && npm run dev
 cd php-server && composer run dev
 ```
 
-### Отправка изменений:
-```bash
-git add .
-git commit -m "описание изменений"
-git push
-```
-
----

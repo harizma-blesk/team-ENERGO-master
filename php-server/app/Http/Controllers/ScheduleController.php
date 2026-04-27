@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Services\ScheduleService;
 use App\Services\SubjectService;
-use App\Tcp\SubjectTcpSender;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -14,7 +13,6 @@ class ScheduleController extends Controller
     public function __construct(
         private ScheduleService $scheduleService,
         private SubjectService  $subjectService,
-        private SubjectTcpSender $subjectTcpSender,
     ) {}
 
     /**
@@ -147,18 +145,6 @@ private function minutesBetween(string $start, string $end): int
         return response()->json($list);
     }
 
-    /**
-     * POST /api/schedule/subjects/push?ip=...&port=...
-     */
-    public function pushSubjects(Request $request): JsonResponse
-    {
-        $ip   = $request->query('ip');
-        $port = (int)$request->query('port');
-
-        $this->subjectTcpSender->sendSubjects($ip, $port);
-
-        return response()->json(['status' => 'sent', 'ip' => $ip, 'port' => $port]);
-    }
 
     private function mapJournal($j): array
     {

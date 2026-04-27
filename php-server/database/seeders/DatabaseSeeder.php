@@ -74,9 +74,6 @@ class DatabaseSeeder extends Seeder
             }
         }
 
-        echo "\n✅ Сидер успешно выполнен!\n";
-        echo "   • Корпус Д удален.\n";
-        echo "   • Поле 'floor' заполнено автоматически.\n";
     }
 
     private function minutesBetween(string $start, string $end): int
