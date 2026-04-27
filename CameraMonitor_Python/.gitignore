@@ -43,9 +43,7 @@ logs/
 .env
 .env.local
 
-# Models (large files)
-models/*.pt
-models/*.onnx
+
 
 # Cache
 .pytest_cache/

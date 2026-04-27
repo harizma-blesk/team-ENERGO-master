@@ -38,7 +38,7 @@ const LOCATIONS = [
   { id: 'corp_b', name: 'Корпус B', floors: [1, 2, 3] }
 ];
 
-const DURATION_OPTIONS = [30, 60, 90, 120];
+
 
 const cameraStatusTag = (room) => {
   if (room.camera_status === 'online' && room.camera_free) {
@@ -70,19 +70,19 @@ const RoomsPage = () => {
     try {
       const values = await form.validateFields();
       const query = {
-        location_id: values.location_id,
-        start_at: dayjs(values.date)
-          .hour(dayjs(values.time).hour())
-          .minute(dayjs(values.time).minute())
-          .second(0)
-          .toISOString(),
-        duration_minutes: values.duration_minutes,
-        floor: values.floor,
-        filters: {
-          min_capacity: values.min_capacity || undefined,
-          need_projector: values.need_projector || undefined
-        }
-      };
+      location_id: values.location_id,
+      start_at: dayjs(values.date)
+        .hour(dayjs(values.time).hour())
+        .minute(dayjs(values.time).minute())
+        .second(0)
+        .format('YYYY-MM-DDTHH:mm:ss'),
+      duration_minutes: 80,  // ← фиксировано
+      floor: values.floor,
+      filters: {
+        min_capacity: values.min_capacity || undefined,
+        need_projector: values.need_projector || undefined
+      }
+    };
       searchMutation.mutate(query);
     } catch {
       /* validation errors shown by antd */
@@ -110,7 +110,7 @@ const RoomsPage = () => {
           layout="vertical"
           initialValues={{
             location_id: LOCATIONS[0].id,
-            duration_minutes: 60,
+            duration_minutes: 80,
             date: dayjs(),
             time: dayjs().startOf('hour').add(1, 'hour'),
             need_projector: false
@@ -158,17 +158,7 @@ const RoomsPage = () => {
               </Form.Item>
             </Col>
 
-            <Col xs={24} sm={12} md={5}>
-              <Form.Item label="Длительность" name="duration_minutes" rules={[{ required: true }]}>
-                <Select>
-                  {DURATION_OPTIONS.map((d) => (
-                    <Select.Option key={d} value={d}>
-                      {d} мин
-                    </Select.Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
+          
           </Row>
 
           <Row gutter={16}>
@@ -267,40 +257,7 @@ const RoomsPage = () => {
           </Card>
 
           {/* Alternatives */}
-          {result.alternatives.length > 0 && (
-            <Card
-              title={
-                <Space>
-                  <CloseCircleOutlined style={{ color: '#faad14' }} />
-                  Альтернативы (заняты по камере)
-                  <Badge count={result.alternatives.length} style={{ backgroundColor: '#faad14' }} />
-                </Space>
-              }
-            >
-              <List
-                grid={{ gutter: 16, xs: 1, sm: 2, md: 3, lg: 4 }}
-                dataSource={result.alternatives}
-                renderItem={(room) => (
-                  <List.Item>
-                    <Card size="small">
-                      <Descriptions column={1} size="small">
-                        <Descriptions.Item label="Кабинет">
-                          <Typography.Text strong>{room.name}</Typography.Text>
-                        </Descriptions.Item>
-                        {room.floor != null && (
-                          <Descriptions.Item label="Этаж">{room.floor}</Descriptions.Item>
-                        )}
-                        {room.capacity != null && (
-                          <Descriptions.Item label="Вместимость">{room.capacity} чел.</Descriptions.Item>
-                        )}
-                        <Descriptions.Item label="Камера">{cameraStatusTag(room)}</Descriptions.Item>
-                      </Descriptions>
-                    </Card>
-                  </List.Item>
-                )}
-              />
-            </Card>
-          )}
+         
         </>
       )}
 

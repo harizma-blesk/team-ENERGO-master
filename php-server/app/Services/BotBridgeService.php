@@ -34,7 +34,7 @@ class BotBridgeService
 
     // ─── Find rooms ───────────────────────────────────────────────────────────
 
-   public function findRooms(array $request): array
+  public function findRooms(array $request): array
 {
     $locationId      = $request['location_id'] ?? null;
     $durationMinutes = (int)($request['duration_minutes'] ?? 0);
@@ -42,18 +42,16 @@ class BotBridgeService
     $minCapacity     = (int)($request['filters']['min_capacity'] ?? 0);
     $needProjector   = (bool)($request['filters']['need_projector'] ?? false);
 
-   $startAt = $request['start_at'] ?? null;
+    $startAt = $request['start_at'] ?? null;
     if ($startAt) {
-    // Если содержит Z или +XX:XX — это UTC/с timezone, конвертируем в Almaty
-    // Если без timezone (от бота) — считаем что уже Almaty
-    if (str_contains($startAt, 'Z') || preg_match('/[+-]\d{2}:\d{2}$/', $startAt)) {
-        $dt = new \DateTime($startAt);
-        $dt->setTimezone(new \DateTimeZone('Asia/Almaty'));
+        if (str_contains($startAt, 'Z') || preg_match('/[+-]\d{2}:\d{2}$/', $startAt)) {
+            $dt = new \DateTime($startAt);
+            $dt->setTimezone(new \DateTimeZone('Asia/Almaty'));
+        } else {
+            $dt = new \DateTime($startAt, new \DateTimeZone('Asia/Almaty'));
+        }
     } else {
-        $dt = new \DateTime($startAt, new \DateTimeZone('Asia/Almaty'));
-    }
-    } else {
-    $dt = new \DateTime('now', new \DateTimeZone('Asia/Almaty'));
+        $dt = new \DateTime('now', new \DateTimeZone('Asia/Almaty'));
     }
 
     $dayOfWeek = (int)$dt->format('N');
@@ -61,6 +59,15 @@ class BotBridgeService
     $endTime   = (clone $dt)->modify("+{$durationMinutes} minutes")->format('H:i');
 
     Log::info("findRooms: dayOfWeek={$dayOfWeek}, startTime={$startTime}, endTime={$endTime}");
+
+    // Последний допустимый слот — 15:30, после него бронирование недоступно
+    if ($startTime > '15:30') {
+        return [
+            'free_rooms'   => [],
+            'alternatives' => [],
+            'reason'       => 'Бронирование недоступно — учебный день завершён.',
+        ];
+    }
 
     $corpus = $this->resolveCorpus($locationId);
 
@@ -83,26 +90,82 @@ class BotBridgeService
             })
             ->exists();
 
+        if (!$busy) {
+            $isOccupied = $aud->is_occupied;
+            $hasCamera  = \App\Models\Camera::where('auditory_id', $aud->id)->exists();
+
+            if ($hasCamera && $isOccupied === true) {
+                continue;
+            }
+
+            $freeRooms[] = [
+                'name'          => $aud->name,
+                'location_name' => $corpus,
+                'location_id'   => $locationId,
+                'floor'         => $aud->floor,
+                'capacity'      => $aud->capacity,
+                'schedule_free' => true,
+                'camera_free'   => $isOccupied === null ? null : !$isOccupied,
+                'camera_status' => $hasCamera ? 'online' : 'offline',
+                'auditory_id'   => $aud->id,
+            ];
+        }
+    }
+
+    // Если свободных нет — ищем ближайший свободный слот по CLASS_START_TIMES
+    if (empty($freeRooms)) {
+        // Только слоты ПОСЛЕ текущего startTime и не позже 15:30
+        $futureSlots = array_filter(
+            self::CLASS_START_TIMES,
+            fn($t) => $t > $startTime && $t <= '15:30'
+        );
+
+        foreach ($futureSlots as $altStart) {
+            $altEnd = $this->addMinutes($altStart, $durationMinutes);
+
+            foreach ($auditories as $aud) {
+                $busy = AuditoryJournal::where('aud_id', $aud->id)
+                    ->where('dayOfWeek', $dayOfWeek)
+                    ->where(function ($q) use ($altStart, $altEnd) {
+                        $q->where('startTime', '<', $altEnd)
+                          ->where('endTime', '>', $altStart);
+                    })
+                    ->exists();
+
                 if (!$busy) {
-                    $isOccupied = (bool)$aud->is_occupied;
+                    $isOccupied = $aud->is_occupied;
                     $hasCamera  = \App\Models\Camera::where('auditory_id', $aud->id)->exists();
 
-                    $roomData = [
+                    if ($hasCamera && $isOccupied === true) {
+                        continue;
+                    }
+
+                    $alternatives[] = [
                         'name'          => $aud->name,
                         'location_name' => $corpus,
                         'location_id'   => $locationId,
                         'floor'         => $aud->floor,
                         'capacity'      => $aud->capacity,
-                        'schedule_free' => true,
-                        'camera_free'   => !$isOccupied,
-                        'camera_status' => $hasCamera ? 'online' : 'offline',
-                        'auditory_id'   => $aud->id,
+                        'alt_start'     => $altStart,
+                        'alt_end'       => $altEnd,
+                        'camera_free'   => $isOccupied === null ? null : !$isOccupied,
                     ];
-
-                    // По расписанию свободно — всегда в free_rooms
-                    // camera_free просто информирует что сейчас там есть люди
-                    $freeRooms[] = $roomData;
                 }
+            }
+
+            if (!empty($alternatives)) {
+                break;
+            }
+        }
+
+        // Если и alternatives не нашли — учебный день завершён
+        if (empty($alternatives)) {
+            return [
+                'free_rooms'   => [],
+                'alternatives' => [],
+                'reason'       => 'Свободных кабинетов на сегодня больше нет.',
+            ];
+        }
     }
 
     return [

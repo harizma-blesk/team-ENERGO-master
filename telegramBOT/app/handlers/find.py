@@ -17,7 +17,7 @@ from app.keyboards.menus import (
     location_keyboard,
     result_actions_keyboard,
 )
-from app.models import FindRoomQuery, find_next_available_slot  # ← добавили импорт
+from app.models import FindRoomQuery, find_next_available_slot
 from app.services.formatter import extract_free_rooms, format_room_details, format_search_result
 from app.services.php_client import PhpClient, PhpClientError
 from app.storage.user_storage import UserStorage
@@ -251,8 +251,7 @@ async def _execute_search(
         return
 
     payload = query.to_php_payload()
-    logger.info("PAYLOAD TO PHP: %s", payload)  # ← сюда
-    logger.info("_execute_search: payload=%s", payload)
+    logger.info("PAYLOAD TO PHP: %s", payload)
     logger.info("_execute_search: payload=%s", payload)
     await message.answer(
         f"🔍 Ищу свободный кабинет на сегодня ({today.isoformat()}) "
@@ -280,12 +279,47 @@ async def _execute_search(
     await user_storage.save_last_response(user_id, response)
 
     free_rooms = extract_free_rooms(response)
+    alternatives = response.get("alternatives", [])
     room_info = None
     corpus = None
 
-  
+    if not free_rooms and alternatives:
+        first_alt = alternatives[0]
+        room_info = str(
+            first_alt.get("name")
+            or first_alt.get("room_name")
+            or "Кабинет"
+        )
+        corpus = first_alt.get("location_name")
+        start_time = first_alt["alt_start"]
+        end_time = first_alt["alt_end"]
+        day_of_week = date.today().isoweekday()
 
-    if free_rooms:
+        booking_data = {
+            "location_id":      data.get("location_id"),
+            "location_name":    data.get("location_name"),
+            "floor":            data.get("floor"),
+            "date":             today.isoformat(),
+            "duration_minutes": BOOKING_DURATION_MINUTES,
+            "room_info":        room_info,
+            "available_from":   start_time,
+            "available_until":  end_time,
+            "day_of_week":      day_of_week,
+            "corpus":           corpus,
+        }
+        await user_storage.save_active_booking(user_id, booking_data)
+
+        try:
+            await php_client._request('POST', '/api/schedule/book', payload={
+                'auditory_name': room_info,
+                'start_time':    start_time,
+                'end_time':      end_time,
+                'day_of_week':   day_of_week,
+            })
+        except Exception as exc:
+            logger.warning(f"Failed to save alternative booking to DB: {exc}")
+
+    elif free_rooms:
         first_room = free_rooms[0]
         room_info = str(
             first_room.get("name")
@@ -295,17 +329,11 @@ async def _execute_search(
             or "Кабинет"
         )
         corpus = first_room.get("location_name")
-        auditory_id = first_room.get("auditory_id") # ← берём id кабинета
+        auditory_id = first_room.get("auditory_id")
 
-        # ↓ Получаем существующие брони этого кабинета
         existing_bookings: list[dict] = []
         if auditory_id:
             try:
-                journal = await php_client._request(
-                    "GET", f"/api/schedule/journal/{auditory_id}"
-                )
-                # journal может быть списком — но _request ждёт dict
-                # поэтому используем httpx напрямую через php_client._client
                 resp = await php_client._client.get(
                     f"/api/schedule/journal/{auditory_id}",
                     headers=php_client._auth_headers(),
@@ -320,11 +348,17 @@ async def _execute_search(
             except Exception as exc:
                 logger.warning(f"Failed to fetch journal for room {auditory_id}: {exc}")
 
-        # ↓ Теперь вычисляем слот с учётом реальных броней
-        booking_start = find_next_available_slot(BOOKING_DURATION_MINUTES, existing_bookings)
-        start_time = booking_start.strftime('%H:%M')
-        end_time = (booking_start + timedelta(minutes=BOOKING_DURATION_MINUTES)).strftime('%H:%M')
-        day_of_week = booking_start.isoweekday()
+        from app.models import CLASS_START_TIMES
+        now_time = datetime.now().time()
+        slot = next((s for s in CLASS_START_TIMES if s >= now_time), None)
+        if slot is None:
+            await state.clear()
+            await message.answer("На сегодня свободных слотов больше нет.")
+            return
+
+        start_time = datetime.combine(date.today(), slot).strftime('%H:%M')
+        end_time = (datetime.combine(date.today(), slot) + timedelta(minutes=BOOKING_DURATION_MINUTES)).strftime('%H:%M')
+        day_of_week = date.today().isoweekday()
 
         booking_data = {
             "location_id":      data.get("location_id"),
@@ -351,6 +385,10 @@ async def _execute_search(
             logger.warning(f"Failed to save booking to DB: {exc}")
 
     await state.clear()
+
+    if not free_rooms and alternatives:
+        # сообщение уже отправлено выше внутри блока
+        return
 
     text = format_search_result(response)
     await message.answer(text)
