@@ -2,7 +2,8 @@ import {
   roomFinderHealth,
   findFreeRooms,
   getAuditories,
-  getJournal
+  getJournal,
+  getLocations 
 } from '../services/room-finder-service.js';
 
 const roomsRoutes = async (fastify) => {
@@ -55,6 +56,18 @@ const roomsRoutes = async (fastify) => {
       return reply.status(502).send({ error: 'Failed to find rooms', details: err.message });
     }
   });
+
+  /* ── Locations (corpus + floors from DB) ── */
+  fastify.get('/rooms/locations', async (_req, reply) => {
+    try {
+      const data = await getLocations();
+      return reply.send(data);
+    } catch (err) {
+      return reply.status(502).send({ error: 'Failed to fetch locations', details: err.message });
+    }
+  });
+  
 };
+
 
 export default roomsRoutes;

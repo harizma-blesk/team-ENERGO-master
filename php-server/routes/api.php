@@ -18,6 +18,7 @@ Route::get('/schedule/journal/{audId}',  [ScheduleController::class, 'journalByA
 Route::get('/schedule/subjects',         [ScheduleController::class, 'subjects']);
 Route::post('/schedule/subjects/push',   [ScheduleController::class, 'pushSubjects']);
 Route::post('/schedule/cameras/detection', [ScheduleController::class, 'updateCameraDetection']);
+Route::get('/schedule/locations', [ScheduleController::class, 'locations']);
 Route::post('/schedule/book', [ScheduleController::class, 'book']);
 // Добавляем этот маршрут специально для Python-скрипта
 Route::get('/auditories', [ScheduleController::class, 'auditories']);

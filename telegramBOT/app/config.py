@@ -36,12 +36,7 @@ class Settings(BaseSettings):
     php_auth_scheme: str = Field(default="none", alias="PHP_AUTH_SCHEME")
     php_auth_secret: str = Field(default="", alias="PHP_AUTH_SECRET")
     php_api_key_header: str = Field(default="X-API-Key", alias="PHP_API_KEY_HEADER")
-    
-    # PHP API
-    php_base_url: str = Field(default="http://localhost:3333", alias="PHP_BASE_URL")
-    php_auth_scheme: str = Field(default="none", alias="PHP_AUTH_SCHEME")
-    php_auth_secret: str = Field(default="", alias="PHP_AUTH_SECRET")
-    php_api_key_header: str = Field(default="X-API-Key", alias="PHP_API_KEY_HEADER")
+  
     
     # Request settings
     request_timeout_seconds: int = Field(default=8, alias="REQUEST_TIMEOUT_SECONDS")
@@ -127,15 +122,12 @@ def build_locations_from_auditories(auditories: list[dict]) -> list[LocationOpti
 
     for aud in auditories:
         corpus = aud.get("corpus")
-        number = aud.get("number")
-        if not corpus:
+        floor = aud.get("floor")  # ← берём из поля floor напрямую
+        if not corpus or floor is None:
             continue
         if corpus not in corpus_floors:
             corpus_floors[corpus] = set()
-        # Извлекаем этаж из первой цифры номера кабинета (101 → 1, 210 → 2)
-        if number is not None:
-            floor = int(str(number)[0])
-            corpus_floors[corpus].add(floor)
+        corpus_floors[corpus].add(int(floor))
 
     corpus_to_id = {"А": "corp_a", "Б": "corp_b", "Д": "corp_d"}
 

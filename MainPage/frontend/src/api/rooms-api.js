@@ -21,3 +21,8 @@ export async function roomFinderHealth() {
   const res = await api.get('/rooms/health');
   return res.data;
 }
+
+export async function loadLocations() {
+    const res = await api.get('/rooms/locations');
+    return res.data;
+}

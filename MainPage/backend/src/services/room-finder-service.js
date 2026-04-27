@@ -71,3 +71,7 @@ export async function getJournal(audId) {
   const path = audId != null ? `/api/schedule/journal/${audId}` : '/api/schedule/journal';
   return PHPFetch(path);
 }
+
+export async function getLocations() {
+    return PHPFetch('/api/schedule/locations');
+}

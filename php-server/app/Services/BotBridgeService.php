@@ -115,9 +115,9 @@ class BotBridgeService
     // Если свободных нет — ищем ближайший свободный слот по CLASS_START_TIMES
     if (empty($freeRooms)) {
         // Только слоты ПОСЛЕ текущего startTime и не позже 15:30
-        $futureSlots = array_filter(
+       $futureSlots = array_filter(
             self::CLASS_START_TIMES,
-            fn($t) => $t > $startTime && $t <= '15:30'
+            fn($t) => $t > $startTime && $t < '15:30'  // строго меньше, 15:30 последняя пара уже идёт
         );
 
         foreach ($futureSlots as $altStart) {

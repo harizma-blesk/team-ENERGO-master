@@ -23,22 +23,13 @@ import {
 } from 'antd';
 import {
   CheckCircleOutlined,
-  CloseCircleOutlined,
   EnvironmentOutlined,
   ReloadOutlined,
   SearchOutlined,
   VideoCameraOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { findFreeRooms, loadAuditories } from '../api/rooms-api';
-
-
-const LOCATIONS = [
-  { id: 'corp_a', name: 'Корпус A', floors: [1, 2, 3, 4] },
-  { id: 'corp_b', name: 'Корпус B', floors: [1, 2, 3] }
-];
-
-
+import { findFreeRooms, loadAuditories, loadLocations } from '../api/rooms-api';
 
 const cameraStatusTag = (room) => {
   if (room.camera_status === 'online' && room.camera_free) {
@@ -50,39 +41,56 @@ const cameraStatusTag = (room) => {
   return <Tag icon={<VideoCameraOutlined />} color="default">Камера: недоступна</Tag>;
 };
 
+const CORPUS_TO_ID = { 'А': 'corp_a', 'Б': 'corp_b', 'Д': 'corp_d' };
+
 const RoomsPage = () => {
   const [form] = Form.useForm();
-  const [selectedLocation, setSelectedLocation] = useState(LOCATIONS[0].id);
+  const [selectedLocation, setSelectedLocation] = useState(null);
+
+  const locationsQuery = useQuery({
+    queryKey: ['locations'],
+    queryFn: loadLocations,
+    retry: 1,
+  });
 
   const auditoriesQuery = useQuery({
     queryKey: ['auditories'],
     queryFn: loadAuditories,
-    retry: 1
+    retry: 1,
   });
 
   const searchMutation = useMutation({
-    mutationFn: findFreeRooms
+    mutationFn: findFreeRooms,
   });
 
-  const floors = LOCATIONS.find((l) => l.id === selectedLocation)?.floors ?? [];
+  // {"А": [1,2,3], "Б": [1,2,3], "Д": [1,2,3]} → [{id, name, floors}]
+  const locationsList = locationsQuery.data
+    ? Object.entries(locationsQuery.data).map(([corpus, floors]) => ({
+        id: CORPUS_TO_ID[corpus] ?? corpus,
+        name: `Корпус ${corpus}`,
+        floors,
+      }))
+    : [];
+
+  const floors = locationsList.find((l) => l.id === selectedLocation)?.floors ?? [];
 
   const handleSearch = async () => {
     try {
       const values = await form.validateFields();
       const query = {
-      location_id: values.location_id,
-      start_at: dayjs(values.date)
-        .hour(dayjs(values.time).hour())
-        .minute(dayjs(values.time).minute())
-        .second(0)
-        .format('YYYY-MM-DDTHH:mm:ss'),
-      duration_minutes: 80,  // ← фиксировано
-      floor: values.floor,
-      filters: {
-        min_capacity: values.min_capacity || undefined,
-        need_projector: values.need_projector || undefined
-      }
-    };
+        location_id: values.location_id,
+        start_at: dayjs(values.date)
+          .hour(dayjs(values.time).hour())
+          .minute(dayjs(values.time).minute())
+          .second(0)
+          .format('YYYY-MM-DDTHH:mm:ss'),
+        duration_minutes: 80,
+        floor: values.floor,
+        filters: {
+          min_capacity: values.min_capacity || undefined,
+          need_projector: values.need_projector || undefined,
+        },
+      };
       searchMutation.mutate(query);
     } catch {
       /* validation errors shown by antd */
@@ -105,27 +113,31 @@ const RoomsPage = () => {
 
       {/* Search form */}
       <Card title="Параметры поиска">
+        {locationsQuery.isLoading && <Spin />}
+        {locationsQuery.error && (
+          <Alert type="warning" showIcon message="Не удалось загрузить список корпусов" />
+        )}
         <Form
           form={form}
           layout="vertical"
           initialValues={{
-            location_id: LOCATIONS[0].id,
-            duration_minutes: 80,
             date: dayjs(),
             time: dayjs().startOf('hour').add(1, 'hour'),
-            need_projector: false
+            need_projector: false,
           }}
         >
           <Row gutter={16}>
             <Col xs={24} sm={12} md={6}>
               <Form.Item label="Корпус" name="location_id" rules={[{ required: true }]}>
                 <Select
+                  placeholder="Выберите корпус"
+                  loading={locationsQuery.isLoading}
                   onChange={(v) => {
                     setSelectedLocation(v);
                     form.setFieldValue('floor', undefined);
                   }}
                 >
-                  {LOCATIONS.map((l) => (
+                  {locationsList.map((l) => (
                     <Select.Option key={l.id} value={l.id}>
                       {l.name}
                     </Select.Option>
@@ -157,8 +169,6 @@ const RoomsPage = () => {
                 <TimePicker format="HH:mm" minuteStep={15} style={{ width: '100%' }} />
               </Form.Item>
             </Col>
-
-          
           </Row>
 
           <Row gutter={16}>
@@ -207,11 +217,8 @@ const RoomsPage = () => {
       {/* Results */}
       {result && (
         <>
-          {result.reason ? (
-            <Alert type="info" showIcon message={result.reason} />
-          ) : null}
+          {result.reason && <Alert type="info" showIcon message={result.reason} />}
 
-          {/* Free rooms */}
           <Card
             title={
               <Space>
@@ -255,9 +262,6 @@ const RoomsPage = () => {
               />
             )}
           </Card>
-
-          {/* Alternatives */}
-         
         </>
       )}
 

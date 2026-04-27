@@ -285,11 +285,7 @@ async def _execute_search(
 
     if not free_rooms and alternatives:
         first_alt = alternatives[0]
-        room_info = str(
-            first_alt.get("name")
-            or first_alt.get("room_name")
-            or "Кабинет"
-        )
+        room_info = str(first_alt.get("name") or first_alt.get("room_name") or "Кабинет")
         corpus = first_alt.get("location_name")
         start_time = first_alt["alt_start"]
         end_time = first_alt["alt_end"]
@@ -319,7 +315,18 @@ async def _execute_search(
         except Exception as exc:
             logger.warning(f"Failed to save alternative booking to DB: {exc}")
 
-    elif free_rooms:
+        await state.clear()
+        logger.info("Alternative booking sent for user %s: %s, %s-%s", user_id, room_info, start_time, end_time)
+        await message.answer(
+            f"✅ На запрошенное время кабинет занят.\n"
+            f"Автоматически забронирован ближайший свободный слот:\n\n"
+            f"🚪 <b>{room_info}</b>\n"
+            f"⏰ {start_time} – {end_time}",
+            parse_mode="HTML",
+        )
+        return
+
+    if free_rooms:
         first_room = free_rooms[0]
         room_info = str(
             first_room.get("name")
@@ -384,14 +391,21 @@ async def _execute_search(
         except Exception as exc:
             logger.warning(f"Failed to save booking to DB: {exc}")
 
+    # Очистить состояние один раз в конце
     await state.clear()
-
-    if not free_rooms and alternatives:
-        # сообщение уже отправлено выше внутри блока
-        return
-
-    text = format_search_result(response)
-    await message.answer(text)
+    
+    # Отправить финальный результат поиска
+    try:
+        text = format_search_result(response)
+        if text:
+            logger.info("Sending search result for user %s, free_rooms=%d", user_id, len(free_rooms))
+            await message.answer(text)
+        else:
+            logger.warning("format_search_result returned empty text for user %s", user_id)
+            await message.answer("Результат поиска пуст. Попробуйте другие параметры.")
+    except Exception as exc:
+        logger.exception("Error sending search result for user %s: %s", user_id, exc)
+        await message.answer(f"Ошибка при отправке результатов: {exc}")
 
 
 @router.callback_query(F.data == "cancel_booking")

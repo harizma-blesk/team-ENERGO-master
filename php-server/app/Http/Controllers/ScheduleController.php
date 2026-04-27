@@ -194,4 +194,20 @@ private function minutesBetween(string $start, string $end): int
 
         return response()->json(['status' => 'error', 'message' => 'Кабинет не найден'], 404);
     }
+
+    public function locations(): JsonResponse
+    {
+        $data = \App\Models\Auditory::select('corpus', 'floor')
+            ->whereNotNull('corpus')
+            ->whereNotNull('floor')
+            ->distinct()
+            ->orderBy('corpus')
+            ->orderBy('floor')
+            ->get()
+            ->groupBy('corpus')
+            ->map(fn($items) => $items->pluck('floor')->unique()->sort()->values())
+            ->toArray();
+
+        return response()->json($data);
+    }
 }
