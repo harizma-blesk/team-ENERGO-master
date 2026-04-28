@@ -33,12 +33,12 @@ import { findFreeRooms, loadAuditories, loadLocations } from '../api/rooms-api';
 
 const cameraStatusTag = (room) => {
   if (room.camera_status === 'online' && room.camera_free) {
-    return <Tag icon={<VideoCameraOutlined />} color="success">Камера: свободно</Tag>;
+    return <Tag icon={<VideoCameraOutlined />} color="success">Свободно</Tag>;
   }
   if (room.camera_status === 'online' && !room.camera_free) {
-    return <Tag icon={<VideoCameraOutlined />} color="error">Камера: занято</Tag>;
+    return <Tag icon={<VideoCameraOutlined />} color="error">Занято</Tag>;
   }
-  return <Tag icon={<VideoCameraOutlined />} color="default">Камера: недоступна</Tag>;
+  return <Tag icon={<VideoCameraOutlined />} color="default">Недоступна</Tag>;
 };
 
 const CORPUS_TO_ID = { 'А': 'corp_a', 'Б': 'corp_b', 'Д': 'corp_d' };

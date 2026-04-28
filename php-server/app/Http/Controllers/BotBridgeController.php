@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Services\BotBridgeService;
-use App\Tcp\PythonTcpClient;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -12,7 +11,6 @@ class BotBridgeController extends Controller
 {
     public function __construct(
         private BotBridgeService $botBridgeService,
-        private PythonTcpClient  $tcpClient,
     ) {}
 
     /**

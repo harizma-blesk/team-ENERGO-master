@@ -16,13 +16,10 @@ class ScheduleService
      *
      * @param array $dto ['fileName' => string, 'sheet' => string, 'rows' => string[][]]
      */
-    public function saveSchedule(array $dto): array
+   public function saveSchedule(array $dto): array
 {
     $fileName = $dto['fileName'] ?? '';
     $rows     = $dto['rows'] ?? [];
-    // Очищаем журнал перед импортом
-    AuditoryJournal::truncate();
-    Auditory::truncate();;
 
     Log::info("ScheduleService: saving schedule from {$fileName}");
 
@@ -49,15 +46,20 @@ class ScheduleService
         $colCamName  = $this->findColumn($header, 'камера_название');
 
         Log::info("Columns: day={$colDay}, time={$colTime}, subject={$colSubject}, teacher={$colTeacher}, room={$colRoom}");
-        Log::info("Camera columns: ip={$colCamIp}, port={$colCamPort}, login={$colCamLogin}, pass={$colCamPass}, name={$colCamName}");
 
         if ($colDay < 0 || $colTime < 0 || $colRoom < 0) {
             Log::error('ScheduleService: missing required columns (день/время/кабинет)');
         } else {
-            $cache = Auditory::all()->keyBy('name')->toArray();
-
             DB::beginTransaction();
             try {
+                // ── Очистка перед загрузкой ───────────────────────────────
+                DB::table('auditory_journal')->delete();
+                DB::table('cameras')->delete();
+                DB::table('auditory')->delete();
+
+                // Кэш пустой после очистки
+                $cache = [];
+
                 for ($i = 1; $i < count($rows); $i++) {
                     $row     = $rows[$i];
                     $dayStr  = $this->safeGet($row, $colDay);
@@ -70,7 +72,7 @@ class ScheduleService
                     $dayOfWeek = $this->parseDayOfWeek((string)$dayStr);
                     if ($dayOfWeek === 0) { $rowsSkipped++; continue; }
 
-                   $roomName = trim((string)$roomStr);
+                    $roomName = trim((string)$roomStr);
                     $corpus   = $this->extractCorpus($roomName);
 
                     // ── Аудитория ─────────────────────────────────────────
@@ -94,7 +96,9 @@ class ScheduleService
                         $cache[$roomName]['capacity'] = $capacityVal;
                     }
 
-                    $audId = $cache[$roomName]['id'];                     // ── Камера ────────────────────────────────────────────
+                    $audId = $cache[$roomName]['id'];
+
+                    // ── Камера ────────────────────────────────────────────
                     if ($colCamIp >= 0) {
                         $camIp = trim((string)($this->safeGet($row, $colCamIp) ?? ''));
 
@@ -122,9 +126,6 @@ class ScheduleService
 
                             if ($created->wasRecentlyCreated) {
                                 $camerasAdded++;
-                                Log::debug("Created camera: {$camName} → {$camIp}:{$camPort}");
-                            } else {
-                                Log::debug("Updated camera: {$camName} → {$camIp}:{$camPort}");
                             }
                         }
                     }
@@ -143,13 +144,14 @@ class ScheduleService
                             Log::warning("Failed to save subject: {$e->getMessage()}");
                         }
                     }
+
+                    // ── Журнал — только если есть предмет ────────────────
                     $subjectVal = $colSubject >= 0 ? trim((string)$this->safeGet($row, $colSubject)) : '';
-                        if (empty($subjectVal)) {
-                        // свободный слот — в журнал не пишем
+                    if (empty($subjectVal)) {
+                        $rowsSkipped++;
                         continue;
                     }
 
-                   // ── Журнал ────────────────────────────────────────────
                     $times = $this->parseTime((string)$timeStr);
                     if ($times !== null) {
                         [$startTime, $endTime] = $times;

@@ -13,41 +13,29 @@ from typing import Optional
 def setup_logger(name: str, log_dir: str = "logs", level: str = "INFO",
                  log_format: Optional[str] = None, max_bytes: int = 10485760,
                  backup_count: int = 5) -> logging.Logger:
-    
+
     if log_format is None:
         log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
-    # Получаем логгер
     logger = logging.getLogger(name)
-
-    # Устанавливаем уровень
     numeric_level = getattr(logging, level.upper(), logging.INFO)
     logger.setLevel(numeric_level)
 
-    # ВАЖНО: Если LoggerManager уже инициализирован, 
-    # мы просто возвращаем логгер, не добавляя ему лишних обработчиков.
-    # Он сам передаст сообщения "наверх" к корневому логгеру.
+    # Если LoggerManager уже есть — просто возвращаем логгер
     if get_logger_manager() is not None:
         return logger
 
-    # Если логгер уже имеет обработчики, ничего не добавляем
+    # Если уже есть handlers — не добавляем
     if logger.handlers:
         return logger
 
-    # --- Код ниже сработает только если LoggerManager еще не создан (fallback) ---
-
-    log_path = Path(log_dir)
-    log_path.mkdir(parents=True, exist_ok=True)
+    # Fallback — только если нет LoggerManager
     formatter = logging.Formatter(log_format)
-
-    # Console handler (добавляем только в режиме fallback)
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(numeric_level)
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
-
-    # Настраиваем проброс логов выше по иерархии
-    logger.propagate = True
+    logger.propagate = False  # ← важно: отключаем propagate в fallback
 
     return logger
 
@@ -83,7 +71,6 @@ class LoggerManager:
         level = getattr(logging, self.config.log_level.upper(), logging.INFO)
         root_logger.setLevel(level)
 
-        # Создаем форматтер
         formatter = logging.Formatter(self.config.log_format)
 
         # File handler
@@ -93,21 +80,28 @@ class LoggerManager:
         log_file = log_dir / "camera_monitor.log"
         file_handler = logging.handlers.RotatingFileHandler(
             log_file,
-            maxBytes=10485760,  # 10MB
+            maxBytes=10485760,
             backupCount=5,
             encoding='utf-8'
         )
         file_handler.setLevel(level)
         file_handler.setFormatter(formatter)
 
-        # Console handler
+        # Console handler — ТОЛЬКО ОДИН
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setLevel(level)
         console_handler.setFormatter(formatter)
 
-        # Добавляем handlers
         root_logger.addHandler(file_handler)
         root_logger.addHandler(console_handler)
+
+    # Отключаем propagate у всех существующих логгеров
+    for name, logger in logging.Logger.manager.loggerDict.items():
+        if isinstance(logger, logging.Logger):
+            logger.propagate = True
+            # Убираем все handlers у дочерних логгеров
+            # чтобы они не дублировали вывод
+            logger.handlers.clear()
 
     def get_logger(self, name: str) -> logging.Logger:
         """
